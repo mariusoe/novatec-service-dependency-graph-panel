@@ -196,74 +196,13 @@ export class ServiceDependencyGraphCtrl extends MetricsPanelCtrl {
 			}
 		});
 
+		// create canvas layer
 		const layer = (<any>this.cy).cyCanvas({ // due to extention we use
 			zIndex: 1
 		});
-		const canvas = layer.getCanvas();
-		const ctx = canvas.getContext("2d");
 
 		this.graphCanvas = new GraphCanvas(this.cy, layer);
 		this.graphCanvas.startAnimation();
-
-		// const repaintCanvas = () => {
-		// 	layer.resetTransform(ctx);
-		// 	layer.clear(ctx);
-
-		// 	// Draw fixed elements
-		// 	ctx.fillRect(0, 0, 150, 150); // Top left corner
-		// 	ctx.font = 'bold 30px serif';
-		// 	ctx.fillStyle = 'red';
-		// 	ctx.fillText(counter++, 100, 100);
-
-		// 	layer.setTransform(ctx);
-
-		// 	// Draw model elements
-		// 	that.cy.nodes().forEach(function (node) {
-		// 		// debugger;
-		// 		const pos = node.position();
-		// 		// ctx.beginPath();
-		// 		// ctx.arc(pos.x, pos.y, 12, 0, 2 * Math.PI, false);
-		// 		// ctx.fill();
-
-		// 		canvasUtil.drawDonut(pos.x, pos.y, 15, 5, 0.5, [60, 10, 30])
-
-		// 		if (that.cy.zoom() > 1) {
-		// 			ctx.fillText(node.id(), pos.x, pos.y);
-		// 		}
-		// 	});
-		// };
-
-		// this.cy.on("render cyCanvas.resize", () => that._drawCanvas(ctx, layer));
-
-		// const wrapper = () => {
-		// 	that._drawCanvas(ctx, layer);
-		// 	window.requestAnimationFrame(wrapper);
-		// }
-
-		// window.requestAnimationFrame(wrapper);
-	}
-
-	_drawCanvas(ctx, layer) {
-		const that = this;
-		layer.resetTransform(ctx);
-		layer.clear(ctx);
-
-		layer.setTransform(ctx);
-
-		// Draw model elements
-		this.cy.nodes().forEach(function (node) {
-			// debugger;
-			const pos = node.position();
-			// ctx.beginPath();
-			// ctx.arc(pos.x, pos.y, 12, 0, 2 * Math.PI, false);
-			// ctx.fill();
-
-			// that.canvasUtil.drawDonut(pos.x, pos.y, 15, 5, 0.5, [60, 10, 30])
-
-			if (that.cy.zoom() > 1) {
-				ctx.fillText(node.id(), pos.x, pos.y);
-			}
-		});
 	}
 
 	onRender(payload) {
