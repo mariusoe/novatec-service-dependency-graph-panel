@@ -43,6 +43,7 @@
     "webpack-cli": "^3.2.3"
   },
   "dependencies": {
+    "@types/cytoscape": "^3.8.5",
     "cytoscape": "^3.11.0",
     "cytoscape-canvas": "^3.0.1",
     "cytoscape-cola": "^2.3.0",

@@ -855,6 +855,11 @@
   dependencies:
     "@babel/types" "^7.3.0"
 
+"@types/cytoscape@^3.8.5":
+  version "3.8.5"
+  resolved "https://registry.yarnpkg.com/@types/cytoscape/-/cytoscape-3.8.5.tgz#03ddef3ec5a1c6e441d115dc103098a907698f27"
+  integrity sha512-5LsDfbW67YCn5rSb95xjTM1ieE1MdhnqTZreRGtoBS7iaoT6wqag2xXOlGEVf9/CnvVnLuPt1ZdTzAlccs9IyQ==
+
 "@types/grafana@https://git@github.com/CorpGlory/types-grafana.git":
   version "4.6.3"
   resolved "https://git@github.com/CorpGlory/types-grafana.git#2ce6e54491a247b9dbfe6b809e43daf2002e8260"

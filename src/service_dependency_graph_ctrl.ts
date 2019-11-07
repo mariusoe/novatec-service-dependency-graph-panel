@@ -4,18 +4,20 @@ import { optionsTab } from './options_ctrl';
 import './css/novatec-service-dependency-graph-panel.css';
 import PreProcessor from './data/PreProcessor';
 
+import GraphCanvas from './canvas/GraphCanvas';
+
 // import GraphGenerator from './graph/GraphGenerator'
 
 import cytoscape from 'cytoscape';
 import coseBilkent from 'cytoscape-cose-bilkent';
 import cola from 'cytoscape-cola';
-import popper from 'cytoscape-popper';
 
 import cyCanvas from 'cytoscape-canvas';
 
+import dummyGraph from './_test-graph';
+
 cyCanvas(cytoscape); // Register extension
 
-cytoscape.use(popper);
 cytoscape.use(cola);
 cytoscape.use(coseBilkent);
 
@@ -77,11 +79,15 @@ export class ServiceDependencyGraphCtrl extends MetricsPanelCtrl {
 
 	zoomLevel: number;
 
-	cy: any;
+	cy: cytoscape.Core;
 
 	dummy: boolean = false;
 
 	popA: any;
+
+	counter: number = 0;
+
+	graphCanvas: GraphCanvas;
 
 	/** @ngInject */
 	constructor($scope, $injector) {
@@ -128,32 +134,7 @@ export class ServiceDependencyGraphCtrl extends MetricsPanelCtrl {
 	}
 
 	updateSDGStyle() {
-		if (this.vizceral) {
-			this.vizceral.updateStyles({
-				colorText: 'rgb(214, 214, 214)',
-				colorTextDisabled: 'rgb(129, 129, 129)',
-				colorTraffic: {
-					healthy: this.panel.sdgStyle.healthyColor,
-					normal: 'rgb(186, 213, 237)',
-					normalDonut: 'rgb(91, 91, 91)',
-					warning: 'rgb(268, 185, 73)',
-					danger: this.panel.sdgStyle.dangerColor
-				},
-				colorNormalDimmed: 'rgb(101, 117, 128)',
-				colorBackgroundDark: 'rgb(35, 35, 35)',
-				colorLabelBorder: 'rgb(16, 17, 18)',
-				colorLabelText: 'rgb(0, 0, 0)',
-				colorDonutInternalColor: 'rgb(35, 35, 35)',
-				colorDonutInternalColorHighlighted: 'rgb(255, 255, 255)',
-				colorConnectionLine: 'rgb(255, 255, 255)',
-				colorPageBackground: 'rgb(45, 45, 45)',
-				colorPageBackgroundTransparent: 'rgba(45, 45, 45, 0)',
-				colorBorderLines: 'rgb(137, 137, 137)',
-				colorArcBackground: 'rgb(60, 60, 60)'
-			});
-
-			this.render();
-		}
+		// update styles ? noch benötigt?
 	}
 
 	forceRender() {
@@ -165,378 +146,133 @@ export class ServiceDependencyGraphCtrl extends MetricsPanelCtrl {
 		//TODO handle event
 	}
 
+	_initCytoscape() {
+		console.log("Initialize cytoscape..");
+		let that = this;
+
+		this.cy = cytoscape({
+			container: document.getElementById('nt-sdg-container'), // container to render in
+			elements: dummyGraph,
+			style: [
+				{
+					"selector": "node[label]",
+					"style": {
+						"label": "data(label)"
+					}
+				},
+				{
+					"selector": "edge",
+					"style": {
+						"width": "1"
+					}
+				},
+
+				{
+					"selector": "edge[label]",
+					"style": {
+						"label": "data(label)",
+						"width": 1
+					}
+				},
+				{
+					"selector": ".background",
+					"style": {
+						"text-background-opacity": 1,
+						"color": "#fff",
+						"text-background-color": "#888",
+						"text-background-shape": "roundrectangle",
+						"text-border-color": "#000",
+						"text-border-width": 1,
+						"text-border-opacity": 1,
+						"text-valign": "bottom",
+						"text-halign": "center"
+					}
+				}
+			],
+
+			layout: {
+				name: 'grid',
+				rows: 1
+			}
+		});
+
+		const layer = (<any>this.cy).cyCanvas({ // due to extention we use
+			zIndex: 1
+		});
+		const canvas = layer.getCanvas();
+		const ctx = canvas.getContext("2d");
+
+		this.graphCanvas = new GraphCanvas(this.cy, layer);
+		this.graphCanvas.startAnimation();
+
+		// const repaintCanvas = () => {
+		// 	layer.resetTransform(ctx);
+		// 	layer.clear(ctx);
+
+		// 	// Draw fixed elements
+		// 	ctx.fillRect(0, 0, 150, 150); // Top left corner
+		// 	ctx.font = 'bold 30px serif';
+		// 	ctx.fillStyle = 'red';
+		// 	ctx.fillText(counter++, 100, 100);
+
+		// 	layer.setTransform(ctx);
+
+		// 	// Draw model elements
+		// 	that.cy.nodes().forEach(function (node) {
+		// 		// debugger;
+		// 		const pos = node.position();
+		// 		// ctx.beginPath();
+		// 		// ctx.arc(pos.x, pos.y, 12, 0, 2 * Math.PI, false);
+		// 		// ctx.fill();
+
+		// 		canvasUtil.drawDonut(pos.x, pos.y, 15, 5, 0.5, [60, 10, 30])
+
+		// 		if (that.cy.zoom() > 1) {
+		// 			ctx.fillText(node.id(), pos.x, pos.y);
+		// 		}
+		// 	});
+		// };
+
+		// this.cy.on("render cyCanvas.resize", () => that._drawCanvas(ctx, layer));
+
+		// const wrapper = () => {
+		// 	that._drawCanvas(ctx, layer);
+		// 	window.requestAnimationFrame(wrapper);
+		// }
+
+		// window.requestAnimationFrame(wrapper);
+	}
+
+	_drawCanvas(ctx, layer) {
+		const that = this;
+		layer.resetTransform(ctx);
+		layer.clear(ctx);
+
+		layer.setTransform(ctx);
+
+		// Draw model elements
+		this.cy.nodes().forEach(function (node) {
+			// debugger;
+			const pos = node.position();
+			// ctx.beginPath();
+			// ctx.arc(pos.x, pos.y, 12, 0, 2 * Math.PI, false);
+			// ctx.fill();
+
+			// that.canvasUtil.drawDonut(pos.x, pos.y, 15, 5, 0.5, [60, 10, 30])
+
+			if (that.cy.zoom() > 1) {
+				ctx.fillText(node.id(), pos.x, pos.y);
+			}
+		});
+	}
+
 	onRender(payload) {
 		console.log("render");
 
 		if (!this.cy) {
-
-			console.log("cyto");
-
-
-			this.cy = cytoscape({
-				container: document.getElementById('nt-sdg-container'), // container to render in
-				elements: [ // list of graph elements to start with
-					{ // node a
-						data: { id: 'a' }
-					},
-					{ // node b
-						data: { id: 'b' }
-					},
-					{ // node b
-						data: { id: 'c' }
-					},
-					{ // node b
-						data: { id: 'd' }
-					},
-					{ // edge ab
-						data: { id: 'ab', source: 'a', target: 'b' }
-					},
-					{ // edge ab
-						data: { id: 'bc', source: 'b', target: 'c' }
-					},
-					{ // edge ab
-						data: { id: 'ac', source: 'a', target: 'c' }
-					},
-					{ // edge ab
-						data: { id: 'ad', source: 'a', target: 'd' }
-					},
-					{ // edge ab
-						data: { id: 'bd', source: 'b', target: 'd' }
-					},
-					{ // edge ab
-						data: { id: 'cd', source: 'c', target: 'd' }
-					}
-				],
-				style: [
-					{
-						"selector": "node[label]",
-						"style": {
-							"label": "data(label)"
-						}
-					},
-					{
-						"selector": "edge",
-						"style": {
-							"width": "1"
-						}
-					},
-
-					{
-						"selector": "edge[label]",
-						"style": {
-							"label": "data(label)",
-							"width": 1
-						}
-					},
-
-					{
-						"selector": ".top-left",
-						"style": {
-							"text-valign": "top",
-							"text-halign": "left"
-						}
-					},
-
-					{
-						"selector": ".top-center",
-						"style": {
-							"text-valign": "top",
-							"text-halign": "center"
-						}
-					},
-
-					{
-						"selector": ".top-right",
-						"style": {
-							"text-valign": "top",
-							"text-halign": "right"
-						}
-					},
-
-					{
-						"selector": ".center-left",
-						"style": {
-							"text-valign": "center",
-							"text-halign": "left"
-						}
-					},
-
-					{
-						"selector": ".center-center",
-						"style": {
-							"text-valign": "center",
-							"text-halign": "center"
-						}
-					},
-
-					{
-						"selector": ".center-right",
-						"style": {
-							"text-valign": "center",
-							"text-halign": "right"
-						}
-					},
-
-					{
-						"selector": ".bottom-left",
-						"style": {
-							"text-valign": "bottom",
-							"text-halign": "left"
-						}
-					},
-
-					{
-						"selector": ".bottom-center",
-						"style": {
-							"text-valign": "bottom",
-							"text-halign": "center"
-						}
-					},
-
-					{
-						"selector": ".bottom-right",
-						"style": {
-							"text-valign": "bottom",
-							"text-halign": "right"
-						}
-					},
-
-					{
-						"selector": ".multiline-manual",
-						"style": {
-							"text-wrap": "wrap"
-						}
-					},
-
-					{
-						"selector": ".multiline-auto",
-						"style": {
-							"text-wrap": "wrap",
-							"text-max-width": 80
-						}
-					},
-
-					{
-						"selector": ".autorotate",
-						"style": {
-							"edge-text-rotation": "autorotate"
-						}
-					},
-
-					{
-						"selector": ".background",
-						"style": {
-							"text-background-opacity": 1,
-							"color": "#fff",
-							"text-background-color": "#888",
-							"text-background-shape": "roundrectangle",
-							"text-border-color": "#000",
-							"text-border-width": 1,
-							"text-border-opacity": 1,
-							"text-valign": "bottom",
-							"text-halign": "center"
-						}
-					},
-
-					{
-						"selector": ".outline",
-						"style": {
-							"color": "#fff",
-							"text-outline-color": "#888",
-							"text-outline-width": 3
-						}
-					}
-				],
-
-				layout: {
-					name: 'grid',
-					rows: 1
-				}
-			});
-
-			const layer = this.cy.cyCanvas({
-				zIndex: 1
-			});
-			const canvas = layer.getCanvas();
-			const ctx = canvas.getContext("2d");
-
-			let that = this;
-
-			// const testLayer = this.cy.cyCanvas({
-			// 	zIndex: 1
-			// });
-			// const testCanvas = testLayer.getCanvas();
-			// const testCtx = canvas.getContext("2d");
-
-			let counter = 0;
-			const drawCanvas = () => {
-				layer.resetTransform(ctx);
-				layer.clear(ctx);
-
-				// Draw fixed elements
-				ctx.fillRect(0, 0, 150, 150); // Top left corner
-				ctx.font = 'bold 30px serif';
-				ctx.fillStyle = 'red';
-				ctx.fillText(counter++, 100, 100);
-
-
-				let drawWedge2 = (currentArc, cX, cY, radius, percent, color) => {
-					// calc size of our wedge in radians
-					var WedgeInRadians = percent / 100 * 360 * Math.PI / 180;
-					// draw the wedge
-					ctx.save();
-					ctx.beginPath();
-					ctx.moveTo(cX, cY);
-					ctx.arc(cX, cY, radius, currentArc, currentArc + WedgeInRadians, false);
-					ctx.closePath();
-					ctx.fillStyle = color;
-					ctx.fill();
-					ctx.restore();
-					// sum the size of all wedges so far
-					// We will begin our next wedge at this sum
-					return WedgeInRadians;
-				};
-
-				let drawDonut = (cX, cY, radius, width, strokeWidth, percentages) => {
-					let currentArc = -Math.PI / 2; // offset
-
-					ctx.beginPath();
-					ctx.arc(cX, cY, radius + strokeWidth, 0, 2 * Math.PI, false);
-					ctx.fillStyle = 'white';
-					ctx.fill();
-
-					const colors = ['green', 'orange', 'red'];
-					for (let i = 0; i < percentages.length; i++) {
-						let arc = drawWedge2(currentArc, cX, cY, radius, percentages[i], colors[i]);
-						currentArc += arc;
-					}
-
-					ctx.beginPath();
-					ctx.arc(cX, cY, radius - width, 0, 2 * Math.PI, false);
-					ctx.fillStyle = 'white';
-					ctx.fill();
-
-					// // cut out an inner-circle == donut
-					ctx.beginPath();
-					// ctx.moveTo(100, 100);
-					// ctx.fillStyle=gradient;
-					ctx.arc(cX, cY, radius - width - strokeWidth, 0, 2 * Math.PI, false);
-
-					ctx.save();
-					ctx.clip();
-					ctx.clearRect(0, 0, canvas.width, canvas.height);
-					ctx.restore();
-				};
-
-				//drawDonut(100, 100, 50, 15, 2, [30, 5, 65]);
-
-				layer.setTransform(ctx);
-
-				// Draw model elements
-				that.cy.nodes().forEach(function (node) {
-					// debugger;
-					const pos = node.position();
-					// ctx.beginPath();
-					// ctx.arc(pos.x, pos.y, 12, 0, 2 * Math.PI, false);
-					// ctx.fill();
-
-					drawDonut(pos.x, pos.y, 15, 5, 0.5, [30, 5, 65])
-
-					if (that.cy.zoom() > 1) {
-						ctx.fillText(node.id(), pos.x, pos.y);
-					}
-				});
-			};
-
-			this.cy.on("render cyCanvas.resize", drawCanvas);
-
-			const dc = () => {
-				drawCanvas();
-				window.requestAnimationFrame(dc);
-			};
-
-			window.requestAnimationFrame(dc);
-
+			this._initCytoscape();
 		}
 
-		// Preload images
-		// background.src =
-		//   "https://files.classcraft.com/classcraft-assets/images/event_scroll_middle.jpg";
-
-		/*
-		if (this.dataAvailable() && !this.dummy) {
-			var generator = new GraphGenerator(this, this.currentData);
-			var graph = generator.generateGraph();
-
-			this.cy.elements().remove();
-
-			_.each(graph.nodes, node => {
-				this.cy.add(
-					{
-						group: 'nodes',
-						data: { id: node.name, label: node.name },
-						classes: 'background'
-					}
-				);
-			});
-
-			_.each(graph.connections, edge => {
-				this.cy.add(
-					{
-						group: 'edges',
-						data: { id: edge.source + edge.target, source: edge.source, target: edge.target }
-					}
-				);
-			});
-
-			let node = this.cy.nodes().first();
-
-			// let popper = node.popper({
-			// 	content: () => {
-			// 		let div = document.createElement('div');
-
-			// 		div.innerHTML = 'Sticky Popper content';
-
-			// 		this.popA = div;
-
-			// 		document.body.appendChild(div);
-
-			// 		return div;
-			// 	},
-			// 	// renderedPosition: (el,b,c,d) => {
-			// 	// 	return { x: el.renderedWidth(), y: el.renderedHeight() };
-			// 	// }
-			// });
-
-			// let update = (a) => {
-			// 	if (a.type === 'zoom') {
-			// 		console.log(this.cy.zoom());
-			// 		this.popA.style.fontSize = this.cy.zoom() + "rem";
-			// 	}
-				
-			// 	popper.scheduleUpdate();
-			// };
-
-			let update = (event) => {
-				let pos = node.renderedPosition();
-				console.log(pos);
-
-				let ele = document.getElementById('test1');
-				
-				ele.style.position = "absolute";
-				ele.style.left = Math.floor(pos.x - ele.offsetWidth / 2) + "px";
-				ele.style.top = Math.floor(pos.y) + "px";
-				ele.style.fontSize = this.cy.zoom() + "rem";
-				
-			};
-
-			node.on('position', update);
-
-			this.cy.on('pan zoom resize', update);
-
-			this.dummy = true;
-		}
-*/
 
 		// if (!this.vizceral) {
 		// 	var sdgContainer = document.getElementById("nt-sdg-container");
