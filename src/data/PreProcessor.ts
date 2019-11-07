@@ -25,8 +25,11 @@ class PreProcessor {
 		});
 
 		var processedData = _(connectionTables)
-			.filter(table => table.type && table.type === 'table')
+			//.filter(table => table.type && table.type === 'table')
 			.flatMap(table => _.map(table.rows, row => this.dataArrayToDataObject(table, row)))
+			.value();
+
+		processedData = _(processedData)
 			.filter(o => o.source || o.target)
 			.groupBy(o => o.source + '===' + o.target)
 			.values()
