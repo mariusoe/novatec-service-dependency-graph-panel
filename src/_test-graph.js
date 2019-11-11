@@ -1,6 +1,6 @@
 export default [ // list of graph elements to start with
     { // node a
-        data: { id: 'zebra' }
+        data: { id: 'zebraxx' }
     },
     { // node b
         data: { id: 'microservice' }
@@ -12,16 +12,16 @@ export default [ // list of graph elements to start with
         data: { id: 'd' }
     },
     { // edge ab
-        data: { id: 'ab', source: 'zebra', target: 'microservice' }
+        data: { id: 'ab', source: 'zebraxx', target: 'microservice' }
     },
     { // edge ab
         data: { id: 'bc', source: 'microservice', target: 'Mysql' }
     },
     { // edge ab
-        data: { id: 'ac', source: 'zebra', target: 'Mysql' }
+        data: { id: 'ac', source: 'zebraxx', target: 'Mysql' }
     },
     { // edge ab
-        data: { id: 'ad', source: 'zebra', target: 'd' }
+        data: { id: 'ad', source: 'zebraxx', target: 'd' }
     },
     { // edge ab
         data: { id: 'bd', source: 'microservice', target: 'd' }

@@ -19,6 +19,10 @@ export default class CanvasDrawer {
 
     canvas: HTMLCanvasElement;
 
+    offscreenCanvas: HTMLCanvasElement;
+
+    offscreenContext: CanvasRenderingContext2D;
+
     frameCounter: number = 0;
 
     fpsCounter: number = 0;
@@ -27,13 +31,16 @@ export default class CanvasDrawer {
 
     particleImage: HTMLImageElement;
 
-    constructor(cy: cytoscape.Core, cyCanvas: CyCanvas) {
+    pixelRatio: number;
 
+    constructor(cy: cytoscape.Core, cyCanvas: CyCanvas) {
         this.cytoscape = cy;
         this.cyCanvas = cyCanvas;
 
+        this.pixelRatio = window.devicePixelRatio || 1;
+
         this.canvas = cyCanvas.getCanvas();
-        const ctx = this.canvas.getContext("2d", { alpha: false });
+        const ctx = this.canvas.getContext("2d");
         if (ctx) {
             this.context = ctx;
         } else {
@@ -41,6 +48,9 @@ export default class CanvasDrawer {
         }
 
         this._preloadImages();
+
+        this.offscreenCanvas = document.createElement('canvas');
+        this.offscreenContext = <CanvasRenderingContext2D>this.offscreenCanvas.getContext('2d');
     }
 
     _preloadImages() {
@@ -97,32 +107,44 @@ export default class CanvasDrawer {
     repaint() {
         const ctx = this.context;
         const cyCanvas = this.cyCanvas;
+        const offscreenCanvas = this.offscreenCanvas;
+        const offscreenContext = this.offscreenContext;
+
+        offscreenCanvas.width = this.canvas.width;
+        offscreenCanvas.height = this.canvas.height;
+
+        // offscreen rendering
+        this._setTransformation(offscreenContext);
+
+        this._drawEdgeAnimation(offscreenContext);
+        this._drawNodes(offscreenContext);
 
         // static element rendering
-        cyCanvas.resetTransform(ctx);
+        // cyCanvas.resetTransform(ctx);
         cyCanvas.clear(ctx);
 
         this._drawDebugInformation();
 
-        // dynamic element rendering
-        cyCanvas.setTransform(ctx);
-
-        this._drawEdgeAnimation();
-        this._drawNodes();
+        if (offscreenCanvas.width > 0 && offscreenCanvas.height > 0)
+            ctx.drawImage(offscreenCanvas, 0, 0);
     }
 
-    _drawEdgeAnimation() {
-        const that = this;
-        const ctx = this.context;
-        const cy = this.cytoscape;
+    _setTransformation(ctx: CanvasRenderingContext2D) {
+        const pan = this.cytoscape.pan();
+        const zoom = this.cytoscape.zoom();
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.translate(pan.x * this.pixelRatio, pan.y * this.pixelRatio);
+        ctx.scale(zoom * this.pixelRatio, zoom * this.pixelRatio);
+    }
 
+    _drawEdgeAnimation(ctx: CanvasRenderingContext2D) {
+        const that = this;
         const now = Date.now();
 
         ctx.beginPath();
 
         let index = this.edgeParticles.length - 1;
         while (index >= 0) {
-            // this.edgeParticles.forEach((particle, index, particleArray) => {
             const particle = this.edgeParticles[index];
             const edge: cytoscape.EdgeSingular = particle.edge;
 
@@ -137,15 +159,15 @@ export default class CanvasDrawer {
             var yDirection = Math.sin(angle);
 
             const timeDelta = now - particle.startTime;
-            const xPos = edge.sourceEndpoint().x + (xDirection * timeDelta * particle.velocity);
-            const yPos = edge.sourceEndpoint().y + (yDirection * timeDelta * particle.velocity);
+            const xPos = sourcePoint.x + (xDirection * timeDelta * particle.velocity);
+            const yPos = sourcePoint.y + (yDirection * timeDelta * particle.velocity);
 
-            if (xPos > Math.max(edge.sourceEndpoint().x, edge.targetEndpoint().x) || xPos < Math.min(edge.sourceEndpoint().x, edge.targetEndpoint().x)
-                || yPos > Math.max(edge.sourceEndpoint().y, edge.targetEndpoint().y) || yPos < Math.min(edge.sourceEndpoint().y, edge.targetEndpoint().y)) {
+            if (xPos > Math.max(sourcePoint.x, targetPoint.x) || xPos < Math.min(sourcePoint.x, targetPoint.x)
+                || yPos > Math.max(sourcePoint.y, targetPoint.y) || yPos < Math.min(sourcePoint.y, targetPoint.y)) {
                 this.edgeParticles.splice(index, 1);
             } else {
                 // draw particle
-                that._drawParticle(xPos, yPos);
+                that._drawParticle(ctx, xPos, yPos);
             }
 
             index--;
@@ -155,40 +177,55 @@ export default class CanvasDrawer {
         ctx.fill();
     }
 
-    _drawParticle(xPos, yPos) {
-        const ctx = this.context;
-        const size = 2;
-
-        // if (this.particleImage) {
-        //     ctx.drawImage(this.particleImage, xPos - size / 2, yPos - size / 2, size, size);
-        // } else {
+    _drawParticle(ctx: CanvasRenderingContext2D, xPos, yPos) {
         ctx.moveTo(xPos, yPos);
         ctx.arc(xPos, yPos, 1, 0, 2 * Math.PI, false);
-        // }
     }
 
-    _drawNodes() {
+    _drawNodes(ctx: CanvasRenderingContext2D) {
         const that = this;
-        const ctx = this.context;
         const cy = this.cytoscape;
 
         // Draw model elements
-        cy.nodes().forEach(function (node) {
-            // drawing the donut
-            that._drawDonut(node, 15, 5, 0.5, [60, 10, 30])
+        cy.nodes().forEach(function (node: cytoscape.NodeSingular) {
+            const type = node.data('type');
+
+            if (type === 'service') {
+                const healthyPct = node.data('healthyPct');
+                const errorPct = node.data('errorPct');
+
+                // drawing the donut
+                that._drawDonut(ctx, node, 15, 5, 0.5, [healthyPct, 0, errorPct])
+            } else {
+                that._drawImage(ctx, node);
+            }
 
             // drawing the node label in case we are not zoomed out
             if (cy.zoom() > 1) {
-                that._drawNodeLabel(node);
+                that._drawNodeLabel(ctx, node);
             }
         });
     }
 
-    _drawNodeLabel(node) {
-        const ctx = this.context;
+    _drawImage(ctx: CanvasRenderingContext2D, node: cytoscape.NodeSingular) {
         const pos = node.position();
-        const label = node.id();
+        const cX = pos.x;
+        const cY = pos.y;
+
+        ctx.beginPath();
+        ctx.arc(cX, cY, 12, 0, 2 * Math.PI, false);
+        ctx.fillStyle = 'white';
+        ctx.fill();
+    }
+
+    _drawNodeLabel(ctx: CanvasRenderingContext2D, node: cytoscape.NodeSingular) {
+        const pos = node.position();
+        let label: string = node.id();
         const labelPadding = 1;
+
+        if (label.length > 20) {
+            label = label.substr(0, 7) + '...' + label.slice(-7);
+        }
 
         ctx.font = '6px Arial';
 
@@ -214,8 +251,7 @@ export default class CanvasDrawer {
         ctx.fillText("Particles: " + this.edgeParticles.length, 10, 24);
     }
 
-    _drawDonut(node, radius, width, strokeWidth, percentages) {
-        const ctx = this.context;
+    _drawDonut(ctx: CanvasRenderingContext2D, node: cytoscape.NodeSingular, radius, width, strokeWidth, percentages) {
         const cX = node.position().x;
         const cY = node.position().y;
 
@@ -226,9 +262,9 @@ export default class CanvasDrawer {
         ctx.fillStyle = 'white';
         ctx.fill();
 
-        const colors = ['green', 'orange', 'red'];
+        const colors = ['#5794f2', 'orange', '#b82424'];
         for (let i = 0; i < percentages.length; i++) {
-            let arc = this._drawArc(currentArc, cX, cY, radius, percentages[i], colors[i]);
+            let arc = this._drawArc(ctx, currentArc, cX, cY, radius, percentages[i], colors[i]);
             currentArc += arc;
         }
 
@@ -252,11 +288,9 @@ export default class CanvasDrawer {
         // ctx.restore();
     }
 
-    _drawArc(currentArc, cX, cY, radius, percent, color) {
-        const ctx = this.context;
-
+    _drawArc(ctx: CanvasRenderingContext2D, currentArc, cX, cY, radius, percent, color) {
         // calc size of our wedge in radians
-        var WedgeInRadians = percent / 100 * 360 * Math.PI / 180;
+        var WedgeInRadians = percent * 360 * Math.PI / 180;
         // draw the wedge
         ctx.save();
         ctx.beginPath();

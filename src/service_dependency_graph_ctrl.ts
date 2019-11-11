@@ -109,28 +109,9 @@ export class ServiceDependencyGraphCtrl extends MetricsPanelCtrl {
 	}
 
 	zoom(zoom) {
-		// const zoomStep = 0.1 * zoom;
-		// const nextZoomLevel = Math.min(Math.max(this.zoomLevel + zoomStep, 0.1), 2);
-
-		// if (this.vizceral) {
-		// 	console.log("Current:", this.zoomLevel, "New:", nextZoomLevel);
-		// 	this.zoomLevel = nextZoomLevel;
-		// 	this.vizceral.setZoom(this.zoomLevel);
-		// }
-		console.log("zoom");
-
-		let id = "x" + Math.random();
-
-		this.cy.add([
-			{
-				group: 'nodes',
-				data: { id }
-			},
-			{
-				group: 'edges',
-				data: { id: "e" + id, source: 'a', target: id }
-			}
-		]);
+		const zoomStep = 1 * zoom;
+		const zoomLevel = Math.max(0.1, this.cy.zoom() + zoomStep);
+		this.cy.zoom(zoomLevel);
 	}
 
 	dataAvailable() {
@@ -214,10 +195,27 @@ export class ServiceDependencyGraphCtrl extends MetricsPanelCtrl {
 		const nodes = _(n)
 			.filter(node => node.name !== '__ENTRY__')
 			.map(node => {
-				return {
-					group: 'nodes',
-					data: {
-						id: node.name
+				const type = _.get(node, 'metadata.external_type', 'service');
+
+				if (type === 'service') {
+					const { healthyPct, errorPct } = node.donutMetrics;
+
+					return {
+						group: 'nodes',
+						data: {
+							id: node.name,
+							healthyPct,
+							errorPct,
+							type
+						}
+					}
+				} else {
+					return {
+						group: 'nodes',
+						data: {
+							id: node.name,
+							type
+						}
 					}
 				}
 			})
@@ -255,7 +253,7 @@ export class ServiceDependencyGraphCtrl extends MetricsPanelCtrl {
 
 	onMount() {
 		console.log("mount");
-		
+
 	}
 
 	onRender(payload) {
@@ -556,6 +554,54 @@ export class ServiceDependencyGraphCtrl extends MetricsPanelCtrl {
 
 		this.cy.layout(options).run();
 
+	}
+
+	runLayout() {
+		let options = {
+			name: 'cola',
+			animate: true, // whether to show the layout as it's running
+			refresh: 55, // number of ticks per frame; higher is faster but more jerky
+			maxSimulationTime: 2000, // max length in ms to run the layout
+			ungrabifyWhileSimulating: false, // so you can't drag nodes during layout
+			fit: true, // on every layout reposition of nodes, fit the viewport
+			padding: 30, // padding around the simulation
+			boundingBox: undefined, // constrain layout bounds; { x1, y1, x2, y2 } or { x1, y1, w, h }
+			nodeDimensionsIncludeLabels: false, // whether labels should be included in determining the space used by a node
+
+			// layout event callbacks
+			ready: function () { }, // on layoutready
+			stop: function () { }, // on layoutstop
+
+			// positioning options
+			randomize: false, // use random node positions at beginning of layout
+			avoidOverlap: true, // if true, prevents overlap of node bounding boxes
+			handleDisconnected: true, // if true, avoids disconnected components from overlapping
+			convergenceThreshold: 0.01, // when the alpha value (system energy) falls below this value, the layout stops
+			nodeSpacing: function (node) { return 15; }, // extra spacing around nodes
+			flow: undefined, // use DAG/tree flow layout if specified, e.g. { axis: 'y', minSeparation: 30 }
+			alignment: undefined, // relative alignment constraints on nodes, e.g. function( node ){ return { x: 0, y: 1 } }
+			gapInequalities: undefined, // list of inequality constraints for the gap between the nodes, e.g. [{"axis":"y", "left":node1, "right":node2, "gap":25}]
+
+			// different methods of specifying edge length
+			// each can be a constant numerical value or a function like `function( edge ){ return 2; }`
+			edgeLength: undefined, // sets edge length directly in simulation
+			edgeSymDiffLength: undefined, // symmetric diff edge length in simulation
+			edgeJaccardLength: undefined, // jaccard edge length in simulation
+
+			// iterations of cola algorithm; uses default values on undefined
+			unconstrIter: undefined, // unconstrained initial layout iterations
+			userConstIter: undefined, // initial layout iterations with user-specified constraints
+			allConstIter: undefined, // initial layout iterations with all constraints including non-overlap
+
+			// infinite layout options
+			infinite: false // overrides all other options for a forces-all-the-time mode
+		};
+
+		this.cy.layout(options).run()
+	}
+
+	center() {
+		this.cy.fit();
 	}
 
 	onInitEditMode() {
