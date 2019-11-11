@@ -1,32 +1,32 @@
 export default [ // list of graph elements to start with
     { // node a
-        data: { id: 'a' }
+        data: { id: 'zebra' }
     },
     { // node b
-        data: { id: 'b' }
+        data: { id: 'microservice' }
     },
     { // node b
-        data: { id: 'c' }
+        data: { id: 'Mysql' }
     },
     { // node b
         data: { id: 'd' }
     },
     { // edge ab
-        data: { id: 'ab', source: 'a', target: 'b' }
+        data: { id: 'ab', source: 'zebra', target: 'microservice' }
     },
     { // edge ab
-        data: { id: 'bc', source: 'b', target: 'c' }
+        data: { id: 'bc', source: 'microservice', target: 'Mysql' }
     },
     { // edge ab
-        data: { id: 'ac', source: 'a', target: 'c' }
+        data: { id: 'ac', source: 'zebra', target: 'Mysql' }
     },
     { // edge ab
-        data: { id: 'ad', source: 'a', target: 'd' }
+        data: { id: 'ad', source: 'zebra', target: 'd' }
     },
     { // edge ab
-        data: { id: 'bd', source: 'b', target: 'd' }
+        data: { id: 'bd', source: 'microservice', target: 'd' }
     },
     { // edge ab
-        data: { id: 'cd', source: 'c', target: 'd' }
+        data: { id: 'cd', source: 'Mysql', target: 'd' }
     }
 ];

@@ -16,6 +16,9 @@ import cyCanvas from 'cytoscape-canvas';
 
 import dummyGraph from './_test-graph';
 
+import test_nodes from './test-data/graph';
+import test_edges from './test-data/connections';
+
 cyCanvas(cytoscape); // Register extension
 
 cytoscape.use(cola);
@@ -89,6 +92,8 @@ export class ServiceDependencyGraphCtrl extends MetricsPanelCtrl {
 
 	graphCanvas: GraphCanvas;
 
+	initResize: boolean = false;
+
 	/** @ngInject */
 	constructor($scope, $injector) {
 		super($scope, $injector);
@@ -96,7 +101,7 @@ export class ServiceDependencyGraphCtrl extends MetricsPanelCtrl {
 		_.defaultsDeep(this.panel, this.panelDefaults);
 
 		this.events.on('init-edit-mode', this.onInitEditMode.bind(this));
-		this.events.on('component-did-mount', this.onRender.bind(this));
+		this.events.on('component-did-mount', this.onMount.bind(this));
 		this.events.on('refresh', this.onRefresh.bind(this));
 		this.events.on('render', this.onRender.bind(this));
 		this.events.on('data-received', this.onDataReceived.bind(this));
@@ -155,6 +160,12 @@ export class ServiceDependencyGraphCtrl extends MetricsPanelCtrl {
 			elements: dummyGraph,
 			style: [
 				{
+					"selector": "node",
+					"style": {
+						"background-color": "#212124"
+					}
+				},
+				{
 					"selector": "node[label]",
 					"style": {
 						"label": "data(label)"
@@ -163,7 +174,7 @@ export class ServiceDependencyGraphCtrl extends MetricsPanelCtrl {
 				{
 					"selector": "edge",
 					"style": {
-						"width": "1"
+						"width": "0.5"
 					}
 				},
 
@@ -196,6 +207,39 @@ export class ServiceDependencyGraphCtrl extends MetricsPanelCtrl {
 			}
 		});
 
+		const n = test_nodes;
+		const e = test_edges;
+		//debugger;
+
+		const nodes = _(n)
+			.filter(node => node.name !== '__ENTRY__')
+			.map(node => {
+				return {
+					group: 'nodes',
+					data: {
+						id: node.name
+					}
+				}
+			})
+			.value();
+
+		const edges = _(e)
+			.filter(edge => edge.source !== '__ENTRY__' && edge.target !== '__ENTRY__')
+			.map(edge => {
+				return {
+					group: 'edges',
+					data: {
+						id: edge.source + ":" + edge.target,
+						source: edge.source,
+						target: edge.target
+					}
+				}
+			})
+			.value();
+
+		(<any>this.cy).add(nodes);
+		(<any>this.cy).add(edges);
+
 		// create canvas layer
 		const layer = (<any>this.cy).cyCanvas({ // due to extention we use
 			zIndex: 1
@@ -203,6 +247,15 @@ export class ServiceDependencyGraphCtrl extends MetricsPanelCtrl {
 
 		this.graphCanvas = new GraphCanvas(this.cy, layer);
 		this.graphCanvas.startAnimation();
+
+		this.cy.reset();
+		this.cy.resize();
+		this.cy.center();
+	}
+
+	onMount() {
+		console.log("mount");
+		
 	}
 
 	onRender(payload) {
@@ -210,6 +263,12 @@ export class ServiceDependencyGraphCtrl extends MetricsPanelCtrl {
 
 		if (!this.cy) {
 			this._initCytoscape();
+		} else {
+			if (!this.initResize) {
+				this.initResize = true;
+				this.cy.reset();
+				this.cy.center();
+			}
 		}
 
 
@@ -458,7 +517,7 @@ export class ServiceDependencyGraphCtrl extends MetricsPanelCtrl {
 		let options = {
 			name: 'cola',
 			animate: true, // whether to show the layout as it's running
-			refresh: 5, // number of ticks per frame; higher is faster but more jerky
+			refresh: 55, // number of ticks per frame; higher is faster but more jerky
 			maxSimulationTime: 2000, // max length in ms to run the layout
 			ungrabifyWhileSimulating: false, // so you can't drag nodes during layout
 			fit: true, // on every layout reposition of nodes, fit the viewport
@@ -475,7 +534,7 @@ export class ServiceDependencyGraphCtrl extends MetricsPanelCtrl {
 			avoidOverlap: true, // if true, prevents overlap of node bounding boxes
 			handleDisconnected: true, // if true, avoids disconnected components from overlapping
 			convergenceThreshold: 0.01, // when the alpha value (system energy) falls below this value, the layout stops
-			nodeSpacing: function (node) { return 10; }, // extra spacing around nodes
+			nodeSpacing: function (node) { return 15; }, // extra spacing around nodes
 			flow: undefined, // use DAG/tree flow layout if specified, e.g. { axis: 'y', minSeparation: 30 }
 			alignment: undefined, // relative alignment constraints on nodes, e.g. function( node ){ return { x: 0, y: 1 } }
 			gapInequalities: undefined, // list of inequality constraints for the gap between the nodes, e.g. [{"axis":"y", "left":node1, "right":node2, "gap":25}]
