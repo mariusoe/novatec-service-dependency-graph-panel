@@ -1,4 +1,5 @@
 import _ from 'lodash';
+import { ServiceDependencyGraphCtrl } from '../service_dependency_graph_ctrl';
 
 interface CyCanvas {
     getCanvas: () => HTMLCanvasElement;
@@ -10,6 +11,12 @@ interface CyCanvas {
 export default class CanvasDrawer {
 
     readonly particleAsset: string = '/public/plugins/novatec-service-dependency-graph-panel/assets/particle.png';
+
+    readonly colors = {
+        background: '#212121'
+    };
+
+    controller: ServiceDependencyGraphCtrl;
 
     cytoscape: cytoscape.Core;
 
@@ -33,9 +40,14 @@ export default class CanvasDrawer {
 
     pixelRatio: number;
 
-    constructor(cy: cytoscape.Core, cyCanvas: CyCanvas) {
+    imageAssets = {};
+
+    selectionNeighborhood: cytoscape.Collection;
+
+    constructor(ctrl: ServiceDependencyGraphCtrl, cy: cytoscape.Core, cyCanvas: CyCanvas) {
         this.cytoscape = cy;
         this.cyCanvas = cyCanvas;
+        this.controller = ctrl;
 
         this.pixelRatio = window.devicePixelRatio || 1;
 
@@ -47,26 +59,54 @@ export default class CanvasDrawer {
             console.error("Could not get 2d canvas context.");
         }
 
-        this._preloadImages();
+        //this._preloadImages();
 
         this.offscreenCanvas = document.createElement('canvas');
         this.offscreenContext = <CanvasRenderingContext2D>this.offscreenCanvas.getContext('2d');
     }
 
-    _preloadImages() {
+    _loadImage(imageUrl: string, assetName: string) {
         const that = this;
 
-        const loadImage = url => {
+        const loadImage = (url, asset) => {
+            const image = new Image();
+            that.imageAssets[asset] = {
+                image,
+                loaded: false
+            };
+
             return new Promise((resolve, reject) => {
-                const img = new Image();
-                img.onload = () => resolve(img);
-                img.onerror = () => reject(new Error(`load ${url} fail`));
-                img.src = url;
+                // const img = new Image();
+                image.onload = () => resolve(asset);
+                image.onerror = () => reject(new Error(`load ${url} fail`));
+                image.src = url;
             });
         };
-        loadImage(this.particleAsset).then((image) => {
-            that.particleImage = <HTMLImageElement>image;
-        });
+        loadImage(imageUrl, assetName)
+            .then((asset: string) => {
+                that.imageAssets[asset].loaded = true;
+            });
+    }
+
+    _isImageLoaded(assetName: string) {
+        if (_.has(this.imageAssets, assetName) && this.imageAssets[assetName].loaded) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    _getImageAsset(assetName) {
+        if (!_.has(this.imageAssets, assetName)) {
+            //const assetUrl = this.controller.getTypeSymbol(assetName);
+            this._loadImage('/public/plugins/novatec-service-dependency-graph-panel/assets/database.png', assetName);
+        }
+
+        if (this._isImageLoaded(assetName)) {
+            return <HTMLImageElement>this.imageAssets[assetName].image;
+        } else {
+            return null;
+        }
     }
 
     startAnimation() {
@@ -116,6 +156,17 @@ export default class CanvasDrawer {
         // offscreen rendering
         this._setTransformation(offscreenContext);
 
+        this.selectionNeighborhood = this.cytoscape.collection();
+        const selection = this.cytoscape.$(':selected');
+        selection.forEach(element => {
+            if (element.isNode()) {
+                this.selectionNeighborhood.merge(element);
+
+                const neighborhood = element.neighborhood();
+                this.selectionNeighborhood.merge(neighborhood);
+            }
+        });
+
         this._drawEdgeAnimation(offscreenContext);
         this._drawNodes(offscreenContext);
 
@@ -141,12 +192,19 @@ export default class CanvasDrawer {
         const that = this;
         const now = Date.now();
 
+        ctx.save();
         ctx.beginPath();
 
         let index = this.edgeParticles.length - 1;
         while (index >= 0) {
             const particle = this.edgeParticles[index];
             const edge: cytoscape.EdgeSingular = particle.edge;
+
+            if (that.selectionNeighborhood.empty() || that.selectionNeighborhood.has(edge)) {
+                ctx.globalAlpha = 1;
+            } else {
+                ctx.globalAlpha = 0.25;
+            }
 
             const sourcePoint = edge.sourceEndpoint();
             const targetPoint = edge.targetEndpoint();
@@ -175,6 +233,7 @@ export default class CanvasDrawer {
 
         ctx.fillStyle = 'white';
         ctx.fill();
+        ctx.restore();
     }
 
     _drawParticle(ctx: CanvasRenderingContext2D, xPos, yPos) {
@@ -188,17 +247,14 @@ export default class CanvasDrawer {
 
         // Draw model elements
         cy.nodes().forEach(function (node: cytoscape.NodeSingular) {
-            const type = node.data('type');
-
-            if (type === 'service') {
-                const healthyPct = node.data('healthyPct');
-                const errorPct = node.data('errorPct');
-
-                // drawing the donut
-                that._drawDonut(ctx, node, 15, 5, 0.5, [healthyPct, 0, errorPct])
+            if (that.selectionNeighborhood.empty() || that.selectionNeighborhood.has(node)) {
+                ctx.globalAlpha = 1;
             } else {
-                that._drawImage(ctx, node);
+                ctx.globalAlpha = 0.4;
             }
+
+            // draw the node
+            that._drawNode(ctx, node);
 
             // drawing the node label in case we are not zoomed out
             if (cy.zoom() > 1) {
@@ -207,15 +263,42 @@ export default class CanvasDrawer {
         });
     }
 
-    _drawImage(ctx: CanvasRenderingContext2D, node: cytoscape.NodeSingular) {
+    _drawNode(ctx: CanvasRenderingContext2D, node: cytoscape.NodeSingular) {
+        const type = node.data('type');
+
+        if (type === 'service') {
+            const healthyPct = node.data('healthyPct');
+            const errorPct = node.data('errorPct');
+
+            // drawing the donut
+            this._drawDonut(ctx, node, 15, 5, 0.5, [healthyPct, 0, errorPct])
+        } else {
+            this._drawExternalService(ctx, node);
+        }
+    }
+
+    _drawExternalService(ctx: CanvasRenderingContext2D, node: cytoscape.NodeSingular) {
         const pos = node.position();
         const cX = pos.x;
         const cY = pos.y;
+        const size = 12;
 
         ctx.beginPath();
         ctx.arc(cX, cY, 12, 0, 2 * Math.PI, false);
         ctx.fillStyle = 'white';
         ctx.fill();
+
+        ctx.beginPath();
+        ctx.arc(cX, cY, 11.5, 0, 2 * Math.PI, false);
+        ctx.fillStyle = this.colors.background;
+        ctx.fill();
+
+        const nodeType = node.data('type');
+        //const image = this.controller.getTypeSymbol(nodeType);
+        const image = this._getImageAsset(nodeType);
+        if (image != null) {
+            ctx.drawImage(image, cX - size / 2, cY - size / 2, size, size);
+        }
     }
 
     _drawNodeLabel(ctx: CanvasRenderingContext2D, node: cytoscape.NodeSingular) {
@@ -236,7 +319,7 @@ export default class CanvasDrawer {
         ctx.fillStyle = '#bad5ed';
         ctx.fillRect(xPos - labelPadding, yPos - 6 - labelPadding, labelWidth + 2 * labelPadding, 6 + 2 * labelPadding);
 
-        ctx.fillStyle = '#212121';
+        ctx.fillStyle = this.colors.background;
         ctx.fillText(label, xPos, yPos);
     }
 
@@ -280,7 +363,7 @@ export default class CanvasDrawer {
         if (node.selected()) {
             ctx.fillStyle = 'red';
         } else {
-            ctx.fillStyle = '#212121';
+            ctx.fillStyle = this.colors.background;
         }
         ctx.fill();
         // ctx.clip();

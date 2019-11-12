@@ -1,5 +1,5 @@
 import { MetricsPanelCtrl } from 'grafana/app/plugins/sdk';
-import _ from 'lodash';
+import _, { find } from 'lodash';
 import { optionsTab } from './options_ctrl';
 import './css/novatec-service-dependency-graph-panel.css';
 import PreProcessor from './data/PreProcessor';
@@ -134,7 +134,6 @@ export class ServiceDependencyGraphCtrl extends MetricsPanelCtrl {
 
 	_initCytoscape() {
 		console.log("Initialize cytoscape..");
-		let that = this;
 
 		this.cy = cytoscape({
 			container: document.getElementById('nt-sdg-container'), // container to render in
@@ -243,7 +242,7 @@ export class ServiceDependencyGraphCtrl extends MetricsPanelCtrl {
 			zIndex: 1
 		});
 
-		this.graphCanvas = new GraphCanvas(this.cy, layer);
+		this.graphCanvas = new GraphCanvas(this, this.cy, layer);
 		this.graphCanvas.startAnimation();
 
 		this.cy.reset();
@@ -626,9 +625,37 @@ export class ServiceDependencyGraphCtrl extends MetricsPanelCtrl {
 	}
 
 	getTemplateVariable(name) {
-		let variable: any = _.find(this.dashboard.templating.list, {
+		let variable: any = find(this.dashboard.templating.list, {
 			name: name
 		});
 		return variable.current.value;
+	}
+
+	getAssetUrl(assetName: string) {
+		var baseUrl = 'public/plugins/' + this.panel.type;
+		return baseUrl + '/assets/' + assetName;
+	}
+
+	getTypeSymbol(type) {
+		if (!type) {
+			return this.getAssetUrl('default.png');
+		}
+		const mapping = find(this.panel.sdgSettings.externalIcons, e => e.type.toLowerCase() === type.toLowerCase());
+
+		// debugger;
+
+		// const typeLC = type.toLowerCase();
+		// const iconMap = {
+		// 	'database': 'database.png',
+		// 	'jms': 'message.png',
+		// 	'web': 'web.png',
+		// 	'http': 'http.png'
+		// };
+
+		if (mapping !== undefined) {
+			return this.getAssetUrl(mapping.icon + '.png');
+		} else {
+			return this.getAssetUrl('default.png');
+		}
 	}
 }
