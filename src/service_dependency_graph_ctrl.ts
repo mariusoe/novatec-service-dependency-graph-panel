@@ -113,7 +113,7 @@ export class ServiceDependencyGraphCtrl extends MetricsPanelCtrl {
 
 	toggleAnimation() {
 		this.panel.sdgSettings.animate = !this.panel.sdgSettings.animate;
-		
+
 		if (this.panel.sdgSettings.animate) {
 			this.graphCanvas.startAnimation();
 		} else {
@@ -153,53 +153,20 @@ export class ServiceDependencyGraphCtrl extends MetricsPanelCtrl {
 		this.cy = cytoscape({
 			container: document.getElementById('nt-sdg-container'), // container to render in
 			elements: dummyGraph,
-			style: [
+			style: <any>[
 				{
 					"selector": "node",
 					"style": {
-						"background-color": "#212124"
-					}
-				},
-				{
-					"selector": "node[label]",
-					"style": {
-						"label": "data(label)"
+						"background-opacity": 0
 					}
 				},
 				{
 					"selector": "edge",
 					"style": {
-						"width": "0.5"
-					}
-				},
-
-				{
-					"selector": "edge[label]",
-					"style": {
-						"label": "data(label)",
-						"width": 1
-					}
-				},
-				{
-					"selector": ".background",
-					"style": {
-						"text-background-opacity": 1,
-						"color": "#fff",
-						"text-background-color": "#888",
-						"text-background-shape": "roundrectangle",
-						"text-border-color": "#000",
-						"text-border-width": 1,
-						"text-border-opacity": 1,
-						"text-valign": "bottom",
-						"text-halign": "center"
+						"visibility": "hidden"
 					}
 				}
-			],
-
-			layout: {
-				name: 'grid',
-				rows: 1
-			}
+			]
 		});
 
 		const n = test_nodes;
@@ -245,6 +212,7 @@ export class ServiceDependencyGraphCtrl extends MetricsPanelCtrl {
 			.map(edge => {
 				const normal = _.get(edge, 'metrics.normal', -1);
 				const danger = _.get(edge, 'metrics.danger', -1);
+				const duration = _.get(edge, 'metadata.connectionTime', -1);
 
 				return {
 					group: 'edges',
@@ -254,7 +222,8 @@ export class ServiceDependencyGraphCtrl extends MetricsPanelCtrl {
 						target: edge.target,
 						metrics: {
 							normal,
-							danger
+							danger,
+							duration
 						}
 					}
 				}
@@ -416,7 +385,7 @@ export class ServiceDependencyGraphCtrl extends MetricsPanelCtrl {
 		let options = {
 			name: 'cola',
 			animate: true, // whether to show the layout as it's running
-			refresh: 55, // number of ticks per frame; higher is faster but more jerky
+			refresh: 1, // number of ticks per frame; higher is faster but more jerky
 			maxSimulationTime: 2000, // max length in ms to run the layout
 			ungrabifyWhileSimulating: false, // so you can't drag nodes during layout
 			fit: true, // on every layout reposition of nodes, fit the viewport
@@ -433,7 +402,7 @@ export class ServiceDependencyGraphCtrl extends MetricsPanelCtrl {
 			avoidOverlap: true, // if true, prevents overlap of node bounding boxes
 			handleDisconnected: true, // if true, avoids disconnected components from overlapping
 			convergenceThreshold: 0.01, // when the alpha value (system energy) falls below this value, the layout stops
-			nodeSpacing: function (node) { return 15; }, // extra spacing around nodes
+			nodeSpacing: function (node) { return 20; }, // extra spacing around nodes
 			flow: undefined, // use DAG/tree flow layout if specified, e.g. { axis: 'y', minSeparation: 30 }
 			alignment: undefined, // relative alignment constraints on nodes, e.g. function( node ){ return { x: 0, y: 1 } }
 			gapInequalities: undefined, // list of inequality constraints for the gap between the nodes, e.g. [{"axis":"y", "left":node1, "right":node2, "gap":25}]

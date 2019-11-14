@@ -17,6 +17,7 @@ export default class CanvasDrawer {
     readonly colors = {
         default: '#bad5ed',
         background: '#212121',
+        edge: '#505050',
         status: {
             normal: '#5794f2',
             warning: 'orange',
@@ -266,14 +267,86 @@ export default class CanvasDrawer {
     }
 
     _drawEdge(ctx: CanvasRenderingContext2D, edge: cytoscape.EdgeSingular, now: number) {
+        const sourcePoint = edge.sourceEndpoint();
+        const targetPoint = edge.targetEndpoint();
+
+        // draw edge line
+        this._drawEdgeLine(ctx, edge, sourcePoint, targetPoint);
+
+        // draw particles
+        this._drawEdgeParticles(ctx, edge, sourcePoint, targetPoint, now);
+
+        // draw label
+        this._drawEdgeLabel(ctx, edge);
+    }
+
+    _drawEdgeLine(ctx: CanvasRenderingContext2D, edge: cytoscape.EdgeSingular, sourcePoint: cytoscape.Position, targetPoint: cytoscape.Position) {
+        ctx.beginPath();
+
+        ctx.moveTo(sourcePoint.x, sourcePoint.y);
+        ctx.lineTo(targetPoint.x, targetPoint.y);
+
+        const metrics = edge.data('metrics');
+        const requestCount = _.get(metrics, 'normal', -1);
+        const errorCount = _.get(metrics, 'danger', -1);
+
+        let base;
+        if (!this.selectionNeighborhood.empty() && this.selectionNeighborhood.has(edge)) {
+            ctx.lineWidth = 3;
+            base = 140;
+        } else {
+            ctx.lineWidth = 1;
+            base = 80;
+        }
+
+        if (requestCount >= 0 && errorCount >= 0) {
+            const range = 255;
+
+            const factor = errorCount / (requestCount + errorCount);
+            const color = Math.min(255, base + range * Math.log2(factor + 1));
+
+            ctx.strokeStyle = 'rgb(' + color + ',' + base + ',' + base + ')';
+        } else {
+            ctx.strokeStyle = 'rgb(' + base + ',' + base + ',' + base + ')';
+        }
+
+        ctx.stroke();
+    }
+
+    _drawEdgeLabel(ctx: CanvasRenderingContext2D, edge: cytoscape.EdgeSingular) {
+        const midpoint = edge.midpoint();
+        const xMid = midpoint.x;
+        const yMid = midpoint.y;
+
+        let statistics: string[] = [];
+
+        const metrics = edge.data('metrics');
+        const duration = _.get(metrics, 'duration', -1);
+        const requestCount = _.get(metrics, 'normal', -1);
+        const errorCount = _.get(metrics, 'danger', -1);
+
+        if (duration >= 0) {
+            statistics.push(Math.floor(duration) + ' ms');
+        }
+        if (requestCount >= 0) {
+            statistics.push(requestCount + ' Requests');
+        }
+        if (errorCount >= 0) {
+            statistics.push(errorCount + ' Errors');
+        }
+
+        if (statistics.length > 0) {
+            const edgeLabel = statistics.join(', ');
+            this._drawLabel(ctx, edgeLabel, xMid, yMid);
+        }
+    }
+
+    _drawEdgeParticles(ctx: CanvasRenderingContext2D, edge: cytoscape.EdgeSingular, sourcePoint: cytoscape.Position, targetPoint: cytoscape.Position, now: number) {
         const particles: Particles = edge.data('particles');
 
         if (particles === undefined) {
             return;
         }
-
-        const sourcePoint = edge.sourceEndpoint();
-        const targetPoint = edge.targetEndpoint();
 
         const xVector = targetPoint.x - sourcePoint.x;
         const yVector = targetPoint.y - sourcePoint.y;
@@ -324,6 +397,21 @@ export default class CanvasDrawer {
         ctx.fill();
     }
 
+    _drawLabel(ctx: CanvasRenderingContext2D, label: string, cX: number, cY: number) {
+        const labelPadding = 1;
+        ctx.font = '6px Arial';
+
+        const labelWidth = ctx.measureText(label).width;
+        const xPos = cX - labelWidth / 2;
+        const yPos = cY + 3;
+
+        ctx.fillStyle = this.colors.default;
+        ctx.fillRect(xPos - labelPadding, yPos - 6 - labelPadding, labelWidth + 2 * labelPadding, 6 + 2 * labelPadding);
+
+        ctx.fillStyle = this.colors.background;
+        ctx.fillText(label, xPos, yPos);
+    }
+
     _drawParticle(drawCtx, particles: Particle[], index: number) {
         const { ctx,
             now,
@@ -363,7 +451,7 @@ export default class CanvasDrawer {
             if (that.selectionNeighborhood.empty() || that.selectionNeighborhood.has(node)) {
                 ctx.globalAlpha = 1;
             } else {
-                ctx.globalAlpha = 0.4;
+                ctx.globalAlpha = 0.25;
             }
 
             // draw the node
