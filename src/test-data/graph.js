@@ -146,13 +146,13 @@ export default [
     {
         "name": "puma",
         "metrics": {
-            "requestCount": 13,
-            "errorCount": 0,
+            "requestCount": 30,
+            "errorCount": 10,
             "responseTime": 0.20064853846151082
         },
         "donutMetrics": {
-            "healthyPct": 1,
-            "errorPct": 0
+            "healthyPct": 0.75,
+            "errorPct": 0.25
         },
         "metadata": {
             "componentMapping": [],

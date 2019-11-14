@@ -1,5 +1,7 @@
 import _ from 'lodash';
 import { ServiceDependencyGraphCtrl } from '../service_dependency_graph_ctrl';
+import ParticleEngine from './ParticleEngine';
+import { Particle, Particles } from './Particle';
 
 interface CyCanvas {
     getCanvas: () => HTMLCanvasElement;
@@ -13,8 +15,16 @@ export default class CanvasDrawer {
     readonly particleAsset: string = '/public/plugins/novatec-service-dependency-graph-panel/assets/particle.png';
 
     readonly colors = {
-        background: '#212121'
+        default: '#bad5ed',
+        background: '#212121',
+        status: {
+            normal: '#5794f2',
+            warning: 'orange',
+            error: '#b82424'
+        }
     };
+
+    readonly donutRadius: number = 15;
 
     controller: ServiceDependencyGraphCtrl;
 
@@ -34,8 +44,6 @@ export default class CanvasDrawer {
 
     fpsCounter: number = 0;
 
-    edgeParticles: any = [];
-
     particleImage: HTMLImageElement;
 
     pixelRatio: number;
@@ -44,10 +52,15 @@ export default class CanvasDrawer {
 
     selectionNeighborhood: cytoscape.Collection;
 
+    particleEngine: ParticleEngine;
+
+    lastRenderTime: number = 0;
+
     constructor(ctrl: ServiceDependencyGraphCtrl, cy: cytoscape.Core, cyCanvas: CyCanvas) {
         this.cytoscape = cy;
         this.cyCanvas = cyCanvas;
         this.controller = ctrl;
+        this.particleEngine = new ParticleEngine(this);
 
         this.pixelRatio = window.devicePixelRatio || 1;
 
@@ -98,8 +111,8 @@ export default class CanvasDrawer {
 
     _getImageAsset(assetName) {
         if (!_.has(this.imageAssets, assetName)) {
-            //const assetUrl = this.controller.getTypeSymbol(assetName);
-            this._loadImage('/public/plugins/novatec-service-dependency-graph-panel/assets/database.png', assetName);
+            const assetUrl = this.controller.getTypeSymbol(assetName);
+            this._loadImage(assetUrl, assetName);
         }
 
         if (this._isImageLoaded(assetName)) {
@@ -109,8 +122,20 @@ export default class CanvasDrawer {
         }
     }
 
-    startAnimation() {
-        console.log("Start graph animation");
+    _getAsset(assetUrl, assetName) {
+        if (!_.has(this.imageAssets, assetName)) {
+            this._loadImage(assetUrl, assetName);
+        }
+
+        if (this._isImageLoaded(assetName)) {
+            return <HTMLImageElement>this.imageAssets[assetName].image;
+        } else {
+            return null;
+        }
+    }
+
+    start() {
+        console.log("Starting graph logic");
 
         const that = this;
         const repaintWrapper = () => {
@@ -120,31 +145,41 @@ export default class CanvasDrawer {
 
         window.requestAnimationFrame(repaintWrapper);
 
-        setInterval(() => that._spawnParticles(), 100);
         setInterval(() => {
             that.fpsCounter = that.frameCounter;
             that.frameCounter = 0;
         }, 1000);
     }
 
-    _spawnParticles() {
-        const cy = this.cytoscape;
-        const that = this;
-
-        const now = Date.now();
-
-        cy.edges().forEach(edge => {
-            for (let i = 0; i < 1; i++) {
-                that.edgeParticles.push({
-                    edge,
-                    velocity: 0.05 + (Math.random() * 0.05),
-                    startTime: now
-                });
-            }
-        });
+    startAnimation() {
+        this.particleEngine.start();
     }
 
-    repaint() {
+    stopAnimation() {
+        this.particleEngine.stop();
+    }
+
+    _skipFrame() {
+        const now = Date.now();
+        const elapsedTime = now - this.lastRenderTime;
+
+        if (this.particleEngine.count() > 0) {
+            return false;
+        }
+
+        if (!this.controller.panel.sdgSettings.animate && elapsedTime < 1000) {
+            return true;
+        }
+        return false;
+
+    }
+
+    repaint(forceRepaint: boolean = false) {
+        if (!forceRepaint && this._skipFrame()) {
+            return;
+        }
+        this.lastRenderTime = Date.now();
+
         const ctx = this.context;
         const cyCanvas = this.cyCanvas;
         const offscreenCanvas = this.offscreenCanvas;
@@ -158,12 +193,17 @@ export default class CanvasDrawer {
 
         this.selectionNeighborhood = this.cytoscape.collection();
         const selection = this.cytoscape.$(':selected');
-        selection.forEach(element => {
-            if (element.isNode()) {
-                this.selectionNeighborhood.merge(element);
+        selection.forEach((element: cytoscape.SingularElementArgument) => {
+            this.selectionNeighborhood.merge(element);
 
+            if (element.isNode()) {
                 const neighborhood = element.neighborhood();
                 this.selectionNeighborhood.merge(neighborhood);
+            } else {
+                const source = element.source();
+                const target = element.target();
+                this.selectionNeighborhood.merge(source);
+                this.selectionNeighborhood.merge(target);
             }
         });
 
@@ -189,56 +229,126 @@ export default class CanvasDrawer {
     }
 
     _drawEdgeAnimation(ctx: CanvasRenderingContext2D) {
-        const that = this;
         const now = Date.now();
 
         ctx.save();
-        ctx.beginPath();
 
-        let index = this.edgeParticles.length - 1;
-        while (index >= 0) {
-            const particle = this.edgeParticles[index];
-            const edge: cytoscape.EdgeSingular = particle.edge;
+        const edges = this.cytoscape.edges().toArray();
+        const hasSelection = this.selectionNeighborhood.size() > 0;
 
-            if (that.selectionNeighborhood.empty() || that.selectionNeighborhood.has(edge)) {
-                ctx.globalAlpha = 1;
-            } else {
-                ctx.globalAlpha = 0.25;
+        // transparent edges
+        if (hasSelection) {
+            ctx.globalAlpha = 0.25;
+
+            for (let i = 0; i < edges.length; i++) {
+                const edge = edges[i];
+
+                if (!this.selectionNeighborhood.has(edge)) {
+                    this._drawEdge(ctx, edge, now);
+                }
             }
+        }
 
-            const sourcePoint = edge.sourceEndpoint();
-            const targetPoint = edge.targetEndpoint();
+        // visible edges
+        ctx.globalAlpha = 1;
 
-            const xVelocity = targetPoint.x - sourcePoint.x;
-            const yVelocity = targetPoint.y - sourcePoint.y;
+        for (let i = 0; i < edges.length; i++) {
+            const edge = edges[i];
 
-            var angle = Math.atan2(yVelocity, xVelocity);
-            var xDirection = Math.cos(angle);
-            var yDirection = Math.sin(angle);
-
-            const timeDelta = now - particle.startTime;
-            const xPos = sourcePoint.x + (xDirection * timeDelta * particle.velocity);
-            const yPos = sourcePoint.y + (yDirection * timeDelta * particle.velocity);
-
-            if (xPos > Math.max(sourcePoint.x, targetPoint.x) || xPos < Math.min(sourcePoint.x, targetPoint.x)
-                || yPos > Math.max(sourcePoint.y, targetPoint.y) || yPos < Math.min(sourcePoint.y, targetPoint.y)) {
-                this.edgeParticles.splice(index, 1);
-            } else {
-                // draw particle
-                that._drawParticle(ctx, xPos, yPos);
+            if (!hasSelection || this.selectionNeighborhood.has(edge)) {
+                this._drawEdge(ctx, edge, now);
             }
-
-            index--;
-        };
+        }
 
         ctx.fillStyle = 'white';
         ctx.fill();
         ctx.restore();
     }
 
-    _drawParticle(ctx: CanvasRenderingContext2D, xPos, yPos) {
-        ctx.moveTo(xPos, yPos);
-        ctx.arc(xPos, yPos, 1, 0, 2 * Math.PI, false);
+    _drawEdge(ctx: CanvasRenderingContext2D, edge: cytoscape.EdgeSingular, now: number) {
+        const particles: Particles = edge.data('particles');
+
+        if (particles === undefined) {
+            return;
+        }
+
+        const sourcePoint = edge.sourceEndpoint();
+        const targetPoint = edge.targetEndpoint();
+
+        const xVector = targetPoint.x - sourcePoint.x;
+        const yVector = targetPoint.y - sourcePoint.y;
+
+        const angle = Math.atan2(yVector, xVector);
+        const xDirection = Math.cos(angle);
+        const yDirection = Math.sin(angle);
+
+        const xMinLimit = Math.min(sourcePoint.x, targetPoint.x);
+        const xMaxLimit = Math.max(sourcePoint.x, targetPoint.x);
+        const yMinLimit = Math.min(sourcePoint.y, targetPoint.y);
+        const yMaxLimit = Math.max(sourcePoint.y, targetPoint.y);
+
+        const drawContext = {
+            ctx,
+            now,
+            xDirection,
+            yDirection,
+            xMinLimit,
+            xMaxLimit,
+            yMinLimit,
+            yMaxLimit,
+            sourcePoint
+        };
+
+        // normal particles
+        ctx.beginPath();
+
+        let index = particles.normal.length - 1;
+        while (index >= 0) {
+            this._drawParticle(drawContext, particles.normal, index);
+            index--;
+        }
+
+        ctx.fillStyle = '#d1e2f2';
+        ctx.fill();
+
+        // danger particles
+        ctx.beginPath();
+
+        index = particles.danger.length - 1;
+        while (index >= 0) {
+            this._drawParticle(drawContext, particles.danger, index);
+            index--;
+        }
+
+        ctx.fillStyle = 'red';
+        ctx.fill();
+    }
+
+    _drawParticle(drawCtx, particles: Particle[], index: number) {
+        const { ctx,
+            now,
+            xDirection,
+            yDirection,
+            xMinLimit,
+            xMaxLimit,
+            yMinLimit,
+            yMaxLimit,
+            sourcePoint } = drawCtx;
+
+        const particle = particles[index];
+
+        const timeDelta = now - particle.startTime;
+        const xPos = sourcePoint.x + (xDirection * timeDelta * particle.velocity);
+        const yPos = sourcePoint.y + (yDirection * timeDelta * particle.velocity);
+
+        if (xPos > xMaxLimit || xPos < xMinLimit || yPos > yMaxLimit || yPos < yMinLimit) {
+            // remove particle
+            particles.splice(index, 1);
+        } else {
+            // draw particle
+            ctx.moveTo(xPos, yPos);
+            ctx.arc(xPos, yPos, 1, 0, 2 * Math.PI, false);
+        }
     }
 
     _drawNodes(ctx: CanvasRenderingContext2D) {
@@ -246,7 +356,10 @@ export default class CanvasDrawer {
         const cy = this.cytoscape;
 
         // Draw model elements
-        cy.nodes().forEach(function (node: cytoscape.NodeSingular) {
+        const nodes = cy.nodes().toArray();
+        for (let i = 0; i < nodes.length; i++) {
+            const node = nodes[i];
+            // cy.nodes().forEach(function (node: cytoscape.NodeSingular) {
             if (that.selectionNeighborhood.empty() || that.selectionNeighborhood.has(node)) {
                 ctx.globalAlpha = 1;
             } else {
@@ -260,20 +373,54 @@ export default class CanvasDrawer {
             if (cy.zoom() > 1) {
                 that._drawNodeLabel(ctx, node);
             }
-        });
+            // });
+        }
     }
 
     _drawNode(ctx: CanvasRenderingContext2D, node: cytoscape.NodeSingular) {
         const type = node.data('type');
+        const metrics = node.data('metrics');
 
         if (type === 'service') {
-            const healthyPct = node.data('healthyPct');
-            const errorPct = node.data('errorPct');
+            const { healthyPct, errorPct } = metrics;
 
             // drawing the donut
-            this._drawDonut(ctx, node, 15, 5, 0.5, [healthyPct, 0, errorPct])
+            this._drawDonut(ctx, node, 15, 5, 0.5, [errorPct, 0, healthyPct])
         } else {
             this._drawExternalService(ctx, node);
+        }
+
+        // draw statistics
+        this._drawNodeStatistics(ctx, node);
+    }
+
+    _drawNodeStatistics(ctx: CanvasRenderingContext2D, node: cytoscape.NodeSingular) {
+        const lines: string[] = [];
+
+        const metrics = node.data('metrics');
+        const requestCount = _.get(metrics, 'requestCount', -1);
+        const errorCount = _.get(metrics, 'errorCount', -1);
+        const responseTime = _.get(metrics, 'responseTime', -1);
+
+        if (requestCount >= 0) {
+            lines.push('Requests: ' + requestCount);
+        }
+        if (errorCount >= 0) {
+            lines.push('Errors: ' + errorCount);
+        }
+        if (responseTime >= 0) {
+            lines.push('Avg. Resp. Time: ' + Math.floor(responseTime) + ' ms');
+        }
+
+        const pos = node.position();
+        const fontSize = 6;
+        const cX = pos.x + this.donutRadius * 1.25;
+        const cY = pos.y + fontSize / 2 - (fontSize / 2) * (lines.length - 1);
+
+        ctx.font = '6px Arial';
+        ctx.fillStyle = this.colors.default;
+        for (let i = 0; i < lines.length; i++) {
+            ctx.fillText(lines[i], cX, cY + i * fontSize);
         }
     }
 
@@ -306,8 +453,10 @@ export default class CanvasDrawer {
         let label: string = node.id();
         const labelPadding = 1;
 
-        if (label.length > 20) {
-            label = label.substr(0, 7) + '...' + label.slice(-7);
+        if (this.selectionNeighborhood.empty() || !this.selectionNeighborhood.has(node)) {
+            if (label.length > 20) {
+                label = label.substr(0, 7) + '...' + label.slice(-7);
+            }
         }
 
         ctx.font = '6px Arial';
@@ -316,7 +465,7 @@ export default class CanvasDrawer {
         const xPos = pos.x - labelWidth / 2;
         const yPos = pos.y + node.height() * 0.8;
 
-        ctx.fillStyle = '#bad5ed';
+        ctx.fillStyle = this.colors.default;
         ctx.fillRect(xPos - labelPadding, yPos - 6 - labelPadding, labelWidth + 2 * labelPadding, 6 + 2 * labelPadding);
 
         ctx.fillStyle = this.colors.background;
@@ -331,7 +480,7 @@ export default class CanvasDrawer {
         ctx.font = '12px monospace';
         ctx.fillStyle = 'white';
         ctx.fillText("Frames per Second: " + this.fpsCounter, 10, 12);
-        ctx.fillText("Particles: " + this.edgeParticles.length, 10, 24);
+        ctx.fillText("Particles: " + this.particleEngine.count(), 10, 24);
     }
 
     _drawDonut(ctx: CanvasRenderingContext2D, node: cytoscape.NodeSingular, radius, width, strokeWidth, percentages) {
@@ -345,7 +494,7 @@ export default class CanvasDrawer {
         ctx.fillStyle = 'white';
         ctx.fill();
 
-        const colors = ['#5794f2', 'orange', '#b82424'];
+        const colors = [this.colors.status.error, this.colors.status.warning, this.colors.status.normal];
         for (let i = 0; i < percentages.length; i++) {
             let arc = this._drawArc(ctx, currentArc, cX, cY, radius, percentages[i], colors[i]);
             currentArc += arc;
@@ -361,7 +510,7 @@ export default class CanvasDrawer {
         ctx.beginPath();
         ctx.arc(cX, cY, radius - width - strokeWidth, 0, 2 * Math.PI, false);
         if (node.selected()) {
-            ctx.fillStyle = 'red';
+            ctx.fillStyle = 'white';
         } else {
             ctx.fillStyle = this.colors.background;
         }

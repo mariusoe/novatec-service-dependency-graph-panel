@@ -2601,6 +2601,13 @@ cytoscape-cose-bilkent@^4.1.0:
   dependencies:
     cose-base "^1.0.0"
 
+cytoscape-klay@^3.1.3:
+  version "3.1.3"
+  resolved "https://registry.yarnpkg.com/cytoscape-klay/-/cytoscape-klay-3.1.3.tgz#d12faa6a39a709c4ff66d4020e1341ca26d51f50"
+  integrity sha512-Bq6WQRum5nojcOH1QGGihPoI5QRNJwxBlLAjpTYjNallZg3oH9/4o0a8jdUG9LIqSc1IDKFSHP2qylm7RURxxw==
+  dependencies:
+    klayjs "^0.4.1"
+
 cytoscape-popper@^1.0.4:
   version "1.0.4"
   resolved "https://registry.yarnpkg.com/cytoscape-popper/-/cytoscape-popper-1.0.4.tgz#13388223d6d84f66f121643fb1213c26d1c693f8"
@@ -4511,6 +4518,11 @@ kind-of@^6.0.0, kind-of@^6.0.2:
   version "6.0.2"
   resolved "https://registry.yarnpkg.com/kind-of/-/kind-of-6.0.2.tgz#01146b36a6218e64e58f3a8d66de5d7fc6f6d051"
   integrity sha512-s5kLOcnH0XqDO+FvuaLX8DDjZ18CGFk7VygH40QoKPUQhW4e2rvM0rwUq0t8IQDOwYSeLK01U90OjzBTme2QqA==
+
+klayjs@^0.4.1:
+  version "0.4.1"
+  resolved "https://registry.yarnpkg.com/klayjs/-/klayjs-0.4.1.tgz#5bf9fadc7a3e44b94082bba501e7d803076dcfc2"
+  integrity sha1-W/n63Ho+RLlAgrulAefYAwdtz8I=
 
 kleur@^3.0.2:
   version "3.0.3"
