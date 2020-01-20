@@ -1,34 +1,7 @@
 import _, { map, flattenDeep, has, omit, groupBy, values, reduce, merge, forOwn } from 'lodash';
 import Utils from '../util/Utils';
-
-interface QueryResponseColumn {
-	type: string;
-	text: string;
-}
-
-interface QueryResponse {
-	columns: QueryResponseColumn[];
-	rows: any[];
-}
-
-interface GraphDataElement {
-	source: string | undefined;
-	target: string;
-	data: any;
-	type: GraphDataType;
-}
-
-enum GraphDataType {
-	SELF = "SELF",
-	INTERNAL = "INTERNAL",
-	EXTERNAL_OUT = "EXTERNAL_OUT",
-	EXTERNAL_IN = "EXTERNAL_IN"
-}
-
-interface GraphData {
-	data: GraphDataElement[];
-	rawData: QueryResponse[];
-}
+import { GraphDataElement, GraphDataType, GraphData } from '../graph/GraphData';
+import { QueryResponse } from './QueryResponse';
 
 class PreProcessor {
 
@@ -83,23 +56,27 @@ class PreProcessor {
 			}
 
 			const result: GraphDataElement = {
-				source: undefined,
 				target: "",
 				data: dataObject,
-				type: GraphDataType.SELF
+				type: GraphDataType.INTERNAL
 			};
 
 			if (trueCount == 0) {
 				result.target = dataObject[aggregationSuffix];
+				result.type = GraphDataType.EXTERNAL_IN;
 			} else {
-				if (source) {
-					result.source = dataObject[sourceColumn];
-					result.target = dataObject[aggregationSuffix];
-					result.type = GraphDataType.INTERNAL;
-				} else if (target) {
-					result.source = dataObject[aggregationSuffix];
-					result.target = dataObject[targetColumn];
-					result.type = GraphDataType.INTERNAL;
+				if (source || target) {
+					if (source) {
+						result.source = dataObject[sourceColumn];
+						result.target = dataObject[aggregationSuffix];
+					} else {
+						result.source = dataObject[aggregationSuffix];
+						result.target = dataObject[targetColumn];
+					}
+
+					if (result.source === result.target) {
+						result.type = GraphDataType.SELF;
+					}
 				} else if (extSource) {
 					result.source = dataObject[externalSource];
 					result.target = dataObject[aggregationSuffix];
@@ -144,12 +121,12 @@ class PreProcessor {
 
 	_cleanData(data: GraphDataElement[]): GraphDataElement[] {
 		const columnMapping = {};
-		columnMapping[Utils.getConfig(this.controller, 'responseTimeColumn')] = 'res_time_sum';
-		columnMapping[Utils.getConfig(this.controller, 'requestRateColumn')] = 'rate';
-		columnMapping[Utils.getConfig(this.controller, 'errorRateColumn')] = 'err_rate';
-		columnMapping[Utils.getConfig(this.controller, 'responseTimeOutgoingColumn')] = 'res_time_sum_out';
+		columnMapping[Utils.getConfig(this.controller, 'responseTimeColumn')] = 'response_time_in';
+		columnMapping[Utils.getConfig(this.controller, 'requestRateColumn')] = 'rate_in';
+		columnMapping[Utils.getConfig(this.controller, 'errorRateColumn')] = 'error_rate_in';
+		columnMapping[Utils.getConfig(this.controller, 'responseTimeOutgoingColumn')] = 'response_time_out';
 		columnMapping[Utils.getConfig(this.controller, 'requestRateOutgoingColumn')] = 'rate_out';
-		columnMapping[Utils.getConfig(this.controller, 'errorRateOutgoingColumn')] = 'err_rate_out';
+		columnMapping[Utils.getConfig(this.controller, 'errorRateOutgoingColumn')] = 'error_rate_out';
 		columnMapping[Utils.getConfig(this.controller, 'type')] = 'type';
 
 		const cleanedData = map(data, dataElement => {
@@ -166,7 +143,7 @@ class PreProcessor {
 		return cleanedData;
 	}
 
-	processData(inputData: QueryResponse[]) : GraphData {
+	processData(inputData: QueryResponse[]): GraphData {
 		const objectTables = this._transformTables(inputData);
 
 		const flattenData = flattenDeep(objectTables);

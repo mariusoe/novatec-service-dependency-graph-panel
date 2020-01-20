@@ -450,7 +450,7 @@ export default class CanvasDrawer {
         const nodes = cy.nodes().toArray();
         for (let i = 0; i < nodes.length; i++) {
             const node = nodes[i];
-            
+
             if (that.selectionNeighborhood.empty() || that.selectionNeighborhood.has(node)) {
                 ctx.globalAlpha = 1;
             } else {
@@ -473,7 +473,17 @@ export default class CanvasDrawer {
         const metrics = node.data('metrics');
 
         if (type === 'service') {
-            const { healthyPct, errorPct } = metrics;
+            const requestCount = _.get(metrics, 'requestCount', 1);
+            const errorCount = _.get(metrics, 'errorCount', 0);
+
+            const totalCount = requestCount + errorCount;
+            var healthyPct;
+            if (totalCount <= 0) {
+                healthyPct = 1.0;
+            } else {
+                healthyPct = 1.0 / totalCount * requestCount;
+            }
+            const errorPct = 1.0 - healthyPct;
 
             // drawing the donut
             this._drawDonut(ctx, node, 15, 5, 0.5, [errorPct, 0, healthyPct])

@@ -1,11 +1,112 @@
-import _ from 'lodash';
-import { has, find } from 'lodash';
+import _, { has, find, flatMap, uniq, groupBy, filter, map, sum, some } from 'lodash';
+import { GraphData, GraphDataElement, GraphDataType } from './GraphData';
+
+interface GraphNodeMetrics {
+	rate?: number;
+	error_rate?: number;
+	response_time?: number;
+	success_rate?: number;
+}
+
+enum GraphNodeType {
+	INTERNAL = 'INTERNAL',
+	EXTERNAL = 'EXTERNAL'
+}
+
+interface GraphNode {
+	name: string;
+	type: GraphNodeType;
+	metrics?: GraphNodeMetrics;
+	external_type?: string;
+}
 
 class GraphGenerator {
+
+	controller: any;
 
 	constructor(panelController, inputData) {
 		this.data = inputData;
 		this.panelCtrl = panelController;
+		this.controller = panelController;
+	}
+
+	_createNode(dataElements: GraphDataElement[]): GraphNode | undefined {
+		if (!dataElements || dataElements.length <= 0) {
+			return undefined;
+		}
+
+		const nodeName = dataElements[0].target;
+		const internalNode = some(dataElements, ['type', GraphDataType.INTERNAL]) || some(dataElements, ['type', GraphDataType.EXTERNAL_IN]);
+		const nodeType = internalNode ? GraphNodeType.INTERNAL : GraphNodeType.EXTERNAL;
+
+		const metrics: GraphNodeMetrics = {};
+
+		const node: GraphNode = {
+			name: nodeName,
+			type: nodeType,
+			metrics
+		};
+
+		if (internalNode) {
+			metrics.rate = sum(map(dataElements, element => element.data.rate_in));
+			metrics.error_rate = sum(map(dataElements, element => element.data.error_rate_in));
+			metrics.response_time = sum(map(dataElements, element => element.data.response_time_in));
+		} else {
+			metrics.rate = sum(map(dataElements, element => element.data.rate_out));
+			metrics.error_rate = sum(map(dataElements, element => element.data.error_rate_out));
+			metrics.response_time = sum(map(dataElements, element => element.data.response_time_out));
+
+			const externalType = _(dataElements)
+				.map(element => element.data.type)
+				.uniq()
+				.value();
+			if (externalType.length == 1) {
+				node.external_type = externalType[0];
+			}
+		}
+
+		const { rate, error_rate } = metrics;
+		if (rate + error_rate > 0) {
+			metrics.success_rate = 1.0 / (rate + error_rate) * rate;
+		} else {
+			metrics.success_rate = 1.0;
+		}
+
+		return node;
+	}
+
+	_createNodes(data: GraphDataElement[]): GraphNode[] {
+		const filteredData = filter(data, dataElement => dataElement.source !== dataElement.target);
+
+		const targetGroups = groupBy(filteredData, 'target');
+
+		const nodes = map(targetGroups, group => this._createNode(group));
+
+		const filteredNodes: GraphNode[] = nodes.filter((node): node is GraphNode => node !== null);
+		return filteredNodes;
+	}
+
+
+	generateGraphNew(graphData: GraphData) {
+		const { data } = graphData;
+
+		const nodes = this._createNodes(data);
+
+
+		debugger;
+
+		console.groupCollapsed('Graph generated');
+		console.log('Input data:', data);
+		console.log('Nodes:', nodes);
+		console.groupEnd();
+
+		return nodes;
+		// const nodeName: string[] = _(data)
+		// 	.flatMap(dataElement => [dataElement.source, dataElement.target])
+		// 	.uniq()
+		// 	.filter()
+		// 	.value();
+		//const nodeNames: string[] = uniq(flatMap(data, dataElement => [dataElement.source, dataElement.target]));
 	}
 
 	generateGraph() {
@@ -31,6 +132,8 @@ class GraphGenerator {
 				adjustWidthToRanks: true
 			}
 		};
+
+		console.log("graph", graph);
 
 		return graph;
 	}
@@ -60,7 +163,7 @@ class GraphGenerator {
 						.filter({
 							'target': nodeName
 						})
-						.map(n => n.data.rate)
+						.map(n => n.data.rate_in)
 						.sum(), 0);
 
 				var errorCount = _.defaultTo(
@@ -70,7 +173,7 @@ class GraphGenerator {
 							'target': nodeName
 						})
 						.filter(d => _.has(d.data, 'err_rate'))
-						.map(n => n.data.err_rate)
+						.map(n => n.data.error_rate_in)
 						.sum(), -1);
 
 				var responseTime = _.defaultTo(
@@ -79,7 +182,7 @@ class GraphGenerator {
 						.filter({
 							'target': nodeName
 						})
-						.map(n => n.data.res_time_sum)
+						.map(n => n.data.response_time_in)
 						.sum(), -1);
 
 				if (this.panelCtrl.panel.sdgSettings.sumTimings && responseTime >= 0) {
@@ -188,7 +291,7 @@ class GraphGenerator {
 						.filter({
 							target: target
 						})
-						.map(o => o.data.res_time_sum_out)
+						.map(o => o.data.response_time_out)
 						.sum()
 					, -1);
 
@@ -211,7 +314,9 @@ class GraphGenerator {
 			})
 			.value();
 
-		return _.concat(nodes, entryNodes, externalNodes);
+		const nodes = _.concat(nodes, entryNodes, externalNodes);
+
+		return nodes;
 	}
 
 	getConnections() {
@@ -227,18 +332,18 @@ class GraphGenerator {
 				var requestRate;
 
 				if (obj.data) {
-					errorRate = _.defaultTo(obj.data.err_rate_out, -1);
+					errorRate = _.defaultTo(obj.data.error_rate_out, -1);
 
 					if (obj.data.external && obj.data.external === "target") {
 						requestRate = _.defaultTo(obj.data.rate_out, -1);
 					} else {
-						requestRate = _.defaultTo(obj.data.rate || obj.data.rate_out, -1);
+						requestRate = _.defaultTo(obj.data.rate_in || obj.data.rate_out, -1);
 					}
 
 					if (this.panelCtrl.panel.sdgSettings.sumTimings && requestRate >= 0) {
-						connectionTime = _.defaultTo((obj.data.res_time_sum_out / obj.data.rate_out) - (obj.data.res_time_sum / obj.data.rate), -1);
+						connectionTime = _.defaultTo((obj.data.response_time_out / obj.data.rate_out) - (obj.data.response_time_in / obj.data.rate_in), -1);
 					} else {
-						connectionTime = _.defaultTo(obj.data.res_time_sum_out - obj.data.res_time_sum, -1);
+						connectionTime = _.defaultTo(obj.data.response_time_out - obj.data.response_time_in, -1);
 					}
 				}
 

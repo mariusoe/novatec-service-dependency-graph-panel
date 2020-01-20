@@ -4,16 +4,17 @@ import { optionsTab } from './options_ctrl';
 import './css/novatec-service-dependency-graph-panel.css';
 import PreProcessor from './processing/PreProcessor'
 
-import GraphCanvas from './canvas/GraphCanvas';
-
+import { GraphData } from './graph/GraphData';
 import GraphGenerator from './graph/GraphGenerator'
 
+import GraphCanvas from './canvas/GraphCanvas';
 import cytoscape from 'cytoscape';
 import cola from 'cytoscape-cola';
 import cyCanvas from 'cytoscape-canvas';
 
 import test_nodes from './test-data/graph';
 import test_edges from './test-data/connections';
+
 
 // Register cytoscape extensions
 cyCanvas(cytoscape);
@@ -70,7 +71,7 @@ export class ServiceDependencyGraphCtrl extends MetricsPanelCtrl {
 		}
 	};
 
-	currentData: any;
+	currentData: GraphData;
 
 	cy: cytoscape.Core;
 
@@ -430,6 +431,7 @@ export class ServiceDependencyGraphCtrl extends MetricsPanelCtrl {
 		if (this.dataAvailable()) {
 			var generator = new GraphGenerator(this, this.currentData);
 			var graph = generator.generateGraph();
+			generator.generateGraphNew(this.currentData);
 
 			this.__transform(graph);
 
@@ -581,15 +583,15 @@ export class ServiceDependencyGraphCtrl extends MetricsPanelCtrl {
 	}
 
 	onDataReceived(receivedData) {
-		var processedData = this.preProcessor.processData(receivedData);
+		const graphData = this.preProcessor.processData(receivedData);
 
-		console.group('Processed received data');
+		console.groupCollapsed('Processed received data');
 		console.log('raw data: ', receivedData);
-		console.log('processed data: ', processedData);
+		console.log('graph data: ', graphData);
 		console.groupEnd();
 
-		if (processedData.data.length > 0) {
-			this.currentData = processedData;
+		if (graphData.data.length > 0) {
+			this.currentData = graphData;
 		} else {
 			this.currentData = [];
 		}
