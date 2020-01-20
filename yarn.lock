@@ -2274,11 +2274,6 @@ chownr@^1.0.1, chownr@^1.1.1:
   resolved "https://registry.yarnpkg.com/chownr/-/chownr-1.1.1.tgz#54726b8b8fff4df053c42187e801fb4412df1494"
   integrity sha512-j38EvO5+LHX84jlo6h4UzmOwi0UgW61WRyPtJz4qaadK5eY3BTS5TY/S1Stc3Uk2lIM6TPevAlULiEJwie860g==
 
-chroma-js@^1.1.1:
-  version "1.4.1"
-  resolved "https://registry.yarnpkg.com/chroma-js/-/chroma-js-1.4.1.tgz#eb2d9c4d1ff24616be84b35119f4d26f8205f134"
-  integrity sha512-jTwQiT859RTFN/vIf7s+Vl/Z2LcMrvMv3WUFmd/4u76AdlFC0NTNgqEEFPcRiHmAswPsMiQEDZLM8vX8qXpZNQ==
-
 chrome-trace-event@^1.0.0:
   version "1.0.0"
   resolved "https://registry.yarnpkg.com/chrome-trace-event/-/chrome-trace-event-1.0.0.tgz#45a91bd2c20c9411f0963b5aaeb9a1b95e09cc48"
@@ -2467,13 +2462,6 @@ core-util-is@1.0.2, core-util-is@~1.0.0:
   resolved "https://registry.yarnpkg.com/core-util-is/-/core-util-is-1.0.2.tgz#b5fd54220aa2bc5ab57aab7140c940754503c1a7"
   integrity sha1-tf1UIgqivFq1eqtxQMlAdUUDwac=
 
-cose-base@^1.0.0:
-  version "1.0.1"
-  resolved "https://registry.yarnpkg.com/cose-base/-/cose-base-1.0.1.tgz#8b8dd73d3cc5dc72bd038c6160e49757f703d9b8"
-  integrity sha512-LErvsHUOzYseXGFKWGCAQBTePO1iYZ9JL+YZlmoyqZ7EDcBzrEMRSouOGszQl72J6VK0AVrJbnNCf3eciqy7SA==
-  dependencies:
-    layout-base "^1.0.0"
-
 create-ecdh@^4.0.0:
   version "4.0.3"
   resolved "https://registry.yarnpkg.com/create-ecdh/-/create-ecdh-4.0.3.tgz#c9111b6f33045c4697f144787f9254cdc77c45ff"
@@ -2593,27 +2581,6 @@ cytoscape-cola@^2.3.0:
   integrity sha512-xblxlCH8JXGLdH6XMUBJY3xBUJuL1rLy8bLMGvqkvoPHSbBfV+/klMWoqwervVKWOmFHPwUdihtxy8stG4RM5g==
   dependencies:
     webcola "^3.3.6"
-
-cytoscape-cose-bilkent@^4.1.0:
-  version "4.1.0"
-  resolved "https://registry.yarnpkg.com/cytoscape-cose-bilkent/-/cytoscape-cose-bilkent-4.1.0.tgz#762fa121df9930ffeb51a495d87917c570ac209b"
-  integrity sha512-wgQlVIUJF13Quxiv5e1gstZ08rnZj2XaLHGoFMYXz7SkNfCDOOteKBE6SYRfA9WxxI/iBc3ajfDoc6hb/MRAHQ==
-  dependencies:
-    cose-base "^1.0.0"
-
-cytoscape-klay@^3.1.3:
-  version "3.1.3"
-  resolved "https://registry.yarnpkg.com/cytoscape-klay/-/cytoscape-klay-3.1.3.tgz#d12faa6a39a709c4ff66d4020e1341ca26d51f50"
-  integrity sha512-Bq6WQRum5nojcOH1QGGihPoI5QRNJwxBlLAjpTYjNallZg3oH9/4o0a8jdUG9LIqSc1IDKFSHP2qylm7RURxxw==
-  dependencies:
-    klayjs "^0.4.1"
-
-cytoscape-popper@^1.0.4:
-  version "1.0.4"
-  resolved "https://registry.yarnpkg.com/cytoscape-popper/-/cytoscape-popper-1.0.4.tgz#13388223d6d84f66f121643fb1213c26d1c693f8"
-  integrity sha512-rKzWiuhGDw0+1UwKK+2eXkZVSNR8TxAXp3k0QOOkH0GW1w55mnCDUVUKZuQyXqHtcZie+TnW1FJ5ml2Uc/lkOg==
-  dependencies:
-    popper.js "^1.0.0"
 
 cytoscape@^3.11.0:
   version "3.11.0"
@@ -3448,11 +3415,6 @@ growly@^1.3.0:
   version "1.3.0"
   resolved "https://registry.yarnpkg.com/growly/-/growly-1.3.0.tgz#f10748cbe76af964b7c96c93c6bcc28af120c081"
   integrity sha1-8QdIy+dq+WS3yWyTxrzCivEgwIE=
-
-hammerjs@^2.0.8:
-  version "2.0.8"
-  resolved "https://registry.yarnpkg.com/hammerjs/-/hammerjs-2.0.8.tgz#04ef77862cff2bb79d30f7692095930222bf60f1"
-  integrity sha1-BO93hiz/K7edMPdpIJWTAiK/YPE=
 
 handlebars@^4.1.2:
   version "4.1.2"
@@ -4519,20 +4481,10 @@ kind-of@^6.0.0, kind-of@^6.0.2:
   resolved "https://registry.yarnpkg.com/kind-of/-/kind-of-6.0.2.tgz#01146b36a6218e64e58f3a8d66de5d7fc6f6d051"
   integrity sha512-s5kLOcnH0XqDO+FvuaLX8DDjZ18CGFk7VygH40QoKPUQhW4e2rvM0rwUq0t8IQDOwYSeLK01U90OjzBTme2QqA==
 
-klayjs@^0.4.1:
-  version "0.4.1"
-  resolved "https://registry.yarnpkg.com/klayjs/-/klayjs-0.4.1.tgz#5bf9fadc7a3e44b94082bba501e7d803076dcfc2"
-  integrity sha1-W/n63Ho+RLlAgrulAefYAwdtz8I=
-
 kleur@^3.0.2:
   version "3.0.3"
   resolved "https://registry.yarnpkg.com/kleur/-/kleur-3.0.3.tgz#a79c9ecc86ee1ce3fa6206d1216c501f147fc07e"
   integrity sha512-eTIzlVOSUR+JxdDFepEYcBMtZ9Qqdef+rnzWdRZuMbOywu5tO2w2N7rqjoANZ5k9vywhL6Br1VRjUIgTQx4E8w==
-
-layout-base@^1.0.0:
-  version "1.0.2"
-  resolved "https://registry.yarnpkg.com/layout-base/-/layout-base-1.0.2.tgz#1291e296883c322a9dd4c5dd82063721b53e26e2"
-  integrity sha512-8h2oVEZNktL4BH2JCOI90iD1yXwL6iNW7KcCKT2QZgQJR2vbqDsldCTPRU9NifTCqHZci57XvQQ15YTu+sTYPg==
 
 lcid@^2.0.0:
   version "2.0.0"
@@ -4620,7 +4572,7 @@ lodash.sortby@^4.7.0:
   resolved "https://registry.yarnpkg.com/lodash.sortby/-/lodash.sortby-4.7.0.tgz#edd14c824e2cc9c1e0b0a1b42bb5210516a42438"
   integrity sha1-7dFMgk4sycHgsKG0K7UhBRakJDg=
 
-lodash@^4.12.0, lodash@^4.13.1, lodash@^4.17.10, lodash@^4.17.11, lodash@^4.17.4:
+lodash@^4.13.1, lodash@^4.17.10, lodash@^4.17.11, lodash@^4.17.4:
   version "4.17.11"
   resolved "https://registry.yarnpkg.com/lodash/-/lodash-4.17.11.tgz#b39ea6229ef607ecd89e2c8df12536891cac9b8d"
   integrity sha512-cQKh8igo5QUhZ7lg38DYWAxMvjSAKG0A8wGSVimP07SIUEK2UO+arSRKbRZWtelMtN5V0Hkwh5ryOto/SshYIg==
@@ -5143,11 +5095,6 @@ number-is-nan@^1.0.0:
   resolved "https://registry.yarnpkg.com/number-is-nan/-/number-is-nan-1.0.1.tgz#097b602b53422a522c1afb8790318336941a011d"
   integrity sha1-CXtgK1NCKlIsGvuHkDGDNpQaAR0=
 
-numeral@^1.5.3:
-  version "1.5.6"
-  resolved "https://registry.yarnpkg.com/numeral/-/numeral-1.5.6.tgz#3831db968451b9cf6aff9bf95925f1ef8e37b33f"
-  integrity sha1-ODHbloRRuc9q/5v5WSXx7443sz8=
-
 nwsapi@^2.0.7:
   version "2.0.9"
   resolved "https://registry.yarnpkg.com/nwsapi/-/nwsapi-2.0.9.tgz#77ac0cdfdcad52b6a1151a84e73254edc33ed016"
@@ -5529,11 +5476,6 @@ pn@^1.1.0:
   version "1.1.0"
   resolved "https://registry.yarnpkg.com/pn/-/pn-1.1.0.tgz#e2f4cef0e219f463c179ab37463e4e1ecdccbafb"
   integrity sha512-2qHaIQr2VLRFoxe2nASzsV6ef4yOOH+Fi9FBOVH6cqeSgUnoyySPZkxzLuzd+RYOQTRpROA0ztTMqxROKSb/nA==
-
-popper.js@^1.0.0:
-  version "1.16.0"
-  resolved "https://registry.yarnpkg.com/popper.js/-/popper.js-1.16.0.tgz#2e1816bcbbaa518ea6c2e15a466f4cb9c6e2fbb3"
-  integrity sha512-+G+EkOPoE5S/zChTpmBSSDYmhXJ5PsW8eMhH8cP/CQHMFPBG/kC9Y5IIw6qNYgdJ+/COf0ddY2li28iHaZRSjw==
 
 posix-character-classes@^0.1.0:
   version "0.1.1"
@@ -6617,11 +6559,6 @@ test-exclude@^5.2.3:
     read-pkg-up "^4.0.0"
     require-main-filename "^2.0.0"
 
-three@^0.96.0:
-  version "0.96.0"
-  resolved "https://registry.yarnpkg.com/three/-/three-0.96.0.tgz#6f48bb9e321506906ae4708bda69b0ffa808ee7f"
-  integrity sha512-tS+A5kelQgBblElc/E1G5zR3m6wNjbqmrf6OAjijuNJM7yoYQjOktPoa+Lglx73OTiTOJ3+Ff+pgWdOFt7cOhQ==
-
 throat@^4.0.0:
   version "4.1.0"
   resolved "https://registry.yarnpkg.com/throat/-/throat-4.1.0.tgz#89037cbc92c56ab18926e6ba4cbb200e15672a6a"
@@ -6753,11 +6690,6 @@ tunnel-agent@^0.6.0:
   integrity sha1-J6XeoGs2sEoKmWZ3SykIaPD8QP0=
   dependencies:
     safe-buffer "^5.0.1"
-
-tween.js@16.6.0:
-  version "16.6.0"
-  resolved "https://registry.yarnpkg.com/tween.js/-/tween.js-16.6.0.tgz#739104c9336cc4f11ee53f9ce7cede51e6723624"
-  integrity sha1-c5EEyTNsxPEe5T+c587eUeZyNiQ=
 
 tweetnacl@^0.14.3, tweetnacl@~0.14.0:
   version "0.14.5"
@@ -6949,18 +6881,6 @@ verror@1.10.0:
     assert-plus "^1.0.0"
     core-util-is "1.0.2"
     extsprintf "^1.2.0"
-
-vizceral@^4.7.3:
-  version "4.7.3"
-  resolved "https://registry.yarnpkg.com/vizceral/-/vizceral-4.7.3.tgz#428a7752238669b15b74227a02548dd4d0fc149c"
-  integrity sha512-emJcahzxd3fLA8lCpuLLjq8fKp2ZLKz/MsTj77S8H1svzBbrxqaJdfPZ7gIEQUA85ZCW0hmByRnaMLjdwvWW2Q==
-  dependencies:
-    chroma-js "^1.1.1"
-    hammerjs "^2.0.8"
-    lodash "^4.12.0"
-    numeral "^1.5.3"
-    three "^0.96.0"
-    tween.js "16.6.0"
 
 vm-browserify@0.0.4:
   version "0.0.4"

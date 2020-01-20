@@ -3,7 +3,7 @@
     <div class="vizceral" id="nt-sdg-container" ng-show="ctrl.dataAvailable()" style="width: 100%; height: 100%"></div>
 
     <div class="zoom-button-container">
-        <button class="btn navbar-button" ng-click="ctrl.toggleAnimation()"><i ng-class="{fa: true, 'fa-play-circle': ctrl.panel.sdgSettings.animate, 'fa-pause-circle': !ctrl.panel.sdgSettings.animate}"></i></button>
+        <button class="btn navbar-button" ng-click="ctrl.toggleAnimation()"><i ng-class="{fa: true, 'fa-play-circle': !ctrl.panel.sdgSettings.animate, 'fa-pause-circle': ctrl.panel.sdgSettings.animate}"></i></button>
         <button class="btn navbar-button" ng-click="ctrl.runLayout()"><i class="fa fa-sitemap"></i></button>
         <button class="btn navbar-button" ng-click="ctrl.fit()"><i class="fa fa-dot-circle-o"></i></button>
         <button class="btn navbar-button" ng-click="ctrl.zoom(+1)"><i class="fa fa-plus"></i></button>

@@ -267,6 +267,7 @@ export default class CanvasDrawer {
     }
 
     _drawEdge(ctx: CanvasRenderingContext2D, edge: cytoscape.EdgeSingular, now: number) {
+        const cy = this.cytoscape;
         const sourcePoint = edge.sourceEndpoint();
         const targetPoint = edge.targetEndpoint();
 
@@ -277,7 +278,9 @@ export default class CanvasDrawer {
         this._drawEdgeParticles(ctx, edge, sourcePoint, targetPoint, now);
 
         // draw label
-        this._drawEdgeLabel(ctx, edge);
+        if (cy.zoom() > 1) {
+            this._drawEdgeLabel(ctx, edge);
+        }
     }
 
     _drawEdgeLine(ctx: CanvasRenderingContext2D, edge: cytoscape.EdgeSingular, sourcePoint: cytoscape.Position, targetPoint: cytoscape.Position) {
@@ -447,7 +450,7 @@ export default class CanvasDrawer {
         const nodes = cy.nodes().toArray();
         for (let i = 0; i < nodes.length; i++) {
             const node = nodes[i];
-            // cy.nodes().forEach(function (node: cytoscape.NodeSingular) {
+            
             if (that.selectionNeighborhood.empty() || that.selectionNeighborhood.has(node)) {
                 ctx.globalAlpha = 1;
             } else {
@@ -461,11 +464,11 @@ export default class CanvasDrawer {
             if (cy.zoom() > 1) {
                 that._drawNodeLabel(ctx, node);
             }
-            // });
         }
     }
 
     _drawNode(ctx: CanvasRenderingContext2D, node: cytoscape.NodeSingular) {
+        const cy = this.cytoscape;
         const type = node.data('type');
         const metrics = node.data('metrics');
 
@@ -479,7 +482,9 @@ export default class CanvasDrawer {
         }
 
         // draw statistics
-        this._drawNodeStatistics(ctx, node);
+        if (cy.zoom() > 1) {
+            this._drawNodeStatistics(ctx, node);
+        }
     }
 
     _drawNodeStatistics(ctx: CanvasRenderingContext2D, node: cytoscape.NodeSingular) {

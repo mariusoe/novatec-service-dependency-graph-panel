@@ -1,5 +1,5 @@
 import _ from 'lodash';
-import {has, find} from 'lodash';
+import { has, find } from 'lodash';
 
 class GraphGenerator {
 
@@ -10,7 +10,7 @@ class GraphGenerator {
 
 	generateGraph() {
 		//TODO ensure that data has correct format => data processor
-		var data = this.data;
+		const { data } = this;
 
 		var nodes = this.getNodes();
 		var connections = this.getConnections();
@@ -56,31 +56,31 @@ class GraphGenerator {
 			.map(nodeName => {
 				var requestCount = _.defaultTo(
 					_(this.data.data)
-					.filter(d => d.source !== d.target)
-					.filter({
-						'target': nodeName
-					})
-					.map(n => n.data.rate)
-					.sum(), 0);
+						.filter(d => d.source !== d.target)
+						.filter({
+							'target': nodeName
+						})
+						.map(n => n.data.rate)
+						.sum(), 0);
 
 				var errorCount = _.defaultTo(
 					_(this.data.data)
-					.filter(d => d.source !== d.target)
-					.filter({
-						'target': nodeName
-					})
-					.filter(d => _.has(d.data, 'err_rate'))
-					.map(n => n.data.err_rate)
-					.sum(), -1);
+						.filter(d => d.source !== d.target)
+						.filter({
+							'target': nodeName
+						})
+						.filter(d => _.has(d.data, 'err_rate'))
+						.map(n => n.data.err_rate)
+						.sum(), -1);
 
 				var responseTime = _.defaultTo(
 					_(this.data.data)
-					.filter(d => d.source !== d.target)
-					.filter({
-						'target': nodeName
-					})
-					.map(n => n.data.res_time_sum)
-					.sum(), -1);
+						.filter(d => d.source !== d.target)
+						.filter({
+							'target': nodeName
+						})
+						.map(n => n.data.res_time_sum)
+						.sum(), -1);
 
 				if (this.panelCtrl.panel.sdgSettings.sumTimings && responseTime >= 0) {
 					responseTime = responseTime / (requestCount + errorCount);
@@ -175,7 +175,7 @@ class GraphGenerator {
 				});
 
 				var callCount = _.defaultTo(
-						_(this.data.data)
+					_(this.data.data)
 						.filter({
 							target: target
 						})

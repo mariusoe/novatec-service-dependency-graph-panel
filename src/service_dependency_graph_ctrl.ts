@@ -2,29 +2,22 @@ import { MetricsPanelCtrl } from 'grafana/app/plugins/sdk';
 import _, { find } from 'lodash';
 import { optionsTab } from './options_ctrl';
 import './css/novatec-service-dependency-graph-panel.css';
-import PreProcessor from './data/PreProcessor';
+import PreProcessor from './processing/PreProcessor'
 
 import GraphCanvas from './canvas/GraphCanvas';
 
-// import GraphGenerator from './graph/GraphGenerator'
+import GraphGenerator from './graph/GraphGenerator'
 
 import cytoscape from 'cytoscape';
-import coseBilkent from 'cytoscape-cose-bilkent';
 import cola from 'cytoscape-cola';
-import klay from 'cytoscape-klay';
-
 import cyCanvas from 'cytoscape-canvas';
-
-import dummyGraph from './_test-graph';
 
 import test_nodes from './test-data/graph';
 import test_edges from './test-data/connections';
 
-cyCanvas(cytoscape); // Register extension
-
+// Register cytoscape extensions
+cyCanvas(cytoscape);
 cytoscape.use(cola);
-cytoscape.use(klay);
-cytoscape.use(coseBilkent);
 
 export class ServiceDependencyGraphCtrl extends MetricsPanelCtrl {
 
@@ -77,25 +70,15 @@ export class ServiceDependencyGraphCtrl extends MetricsPanelCtrl {
 		}
 	};
 
-	vizceral: any;
-
 	currentData: any;
 
-	currentGraphNodes: Array<string> = [];
-
-	zoomLevel: number;
-
 	cy: cytoscape.Core;
-
-	dummy: boolean = false;
-
-	popA: any;
-
-	counter: number = 0;
 
 	graphCanvas: GraphCanvas;
 
 	initResize: boolean = false;
+
+	preProcessor: PreProcessor = new PreProcessor(this);
 
 	/** @ngInject */
 	constructor($scope, $injector) {
@@ -128,8 +111,8 @@ export class ServiceDependencyGraphCtrl extends MetricsPanelCtrl {
 	}
 
 	dataAvailable() {
-		//return this.currentData != null && _.has(this.currentData, 'data') && this.currentData.data.length > 0;
-		return true;
+		return this.currentData != null && _.has(this.currentData, 'data') && this.currentData.data.length > 0;
+		// return true;
 	}
 
 	updateSDGStyle() {
@@ -137,12 +120,92 @@ export class ServiceDependencyGraphCtrl extends MetricsPanelCtrl {
 	}
 
 	forceRender() {
-		this.vizceral = null;
 		this.render();
 	}
 
 	onObjectHighlighted(object) {
 		//TODO handle event
+	}
+
+	__transform(graph: any) {
+		const n = graph.nodes;
+		const e = graph.connections;
+		//debugger;
+
+		const nodes = _(n)
+			.filter(node => node.name !== '__ENTRY__')
+			.map(node => {
+				const type = _.get(node, 'metadata.external_type', 'service');
+
+				if (type === 'service') {
+					const { healthyPct, errorPct } = node.donutMetrics;
+					const metrics = {
+						...node.metrics,
+						healthyPct,
+						errorPct
+					};
+
+					return {
+						group: 'nodes',
+						data: {
+							id: node.name,
+							type,
+							metrics
+						}
+					}
+				} else {
+					return {
+						group: 'nodes',
+						data: {
+							id: node.name,
+							type
+						}
+					}
+				}
+			})
+			.value();
+
+		const edges = _(e)
+			.filter(edge => edge.source !== '__ENTRY__' && edge.target !== '__ENTRY__')
+			.filter(edge => _.get(edge, 'metrics.normal', 0) > 0 || _.get(edge, 'metrics.danger', 0) > 0)
+			.map(edge => {
+				const normal = _.get(edge, 'metrics.normal', -1);
+				const danger = _.get(edge, 'metrics.danger', -1);
+				const duration = _.get(edge, 'metadata.connectionTime', -1);
+
+				return {
+					group: 'edges',
+					data: {
+						id: edge.source + ":" + edge.target,
+						source: edge.source,
+						target: edge.target,
+						metrics: {
+							normal,
+							danger,
+							duration
+						}
+					}
+				}
+			})
+			.value();
+
+		this.cy.elements().remove();
+		(<any>this.cy).add(nodes);
+		(<any>this.cy).add(edges);
+
+		this.cy.nodes().each(node => {
+			if (node.neighborhood().size() <= 0) {
+				for (var key of ['metrics.requestCount', 'metrics.errorCount', 'metrics.responseTime']) {
+					if (_.get(node.data, key, 0) > 0) {
+						return;
+					}
+				}
+
+				node.remove();
+			}
+		});
+
+		this.runLayout();
 	}
 
 	_initCytoscape() {
@@ -152,7 +215,6 @@ export class ServiceDependencyGraphCtrl extends MetricsPanelCtrl {
 
 		this.cy = cytoscape({
 			container: document.getElementById('nt-sdg-container'), // container to render in
-			elements: dummyGraph,
 			style: <any>[
 				{
 					"selector": "node",
@@ -166,7 +228,8 @@ export class ServiceDependencyGraphCtrl extends MetricsPanelCtrl {
 						"visibility": "hidden"
 					}
 				}
-			]
+			],
+			wheelSensitivity: 0.125
 		});
 
 		const n = test_nodes;
@@ -232,6 +295,19 @@ export class ServiceDependencyGraphCtrl extends MetricsPanelCtrl {
 
 		(<any>this.cy).add(nodes);
 		(<any>this.cy).add(edges);
+
+		// ???
+		this.cy.nodes().each(node => {
+			if (node.neighborhood().size() <= 0) {
+				for (var key of ['metrics.requestCount', 'metrics.errorCount', 'metrics.responseTime']) {
+					if (_.get(node.data, key, 0) > 0) {
+						return;
+					}
+				}
+
+				node.remove();
+			}
+		});
 
 		// create canvas layer
 		const layer = (<any>this.cy).cyCanvas({ // due to extention we use
@@ -351,22 +427,26 @@ export class ServiceDependencyGraphCtrl extends MetricsPanelCtrl {
 		// 	}
 		// }
 
-		// if (this.dataAvailable()) {
-		// 	var generator = new GraphGenerator(this, this.currentData);
-		// 	var graph = generator.generateGraph();
-		// 	this.vizceral.updateData(graph);
+		if (this.dataAvailable()) {
+			var generator = new GraphGenerator(this, this.currentData);
+			var graph = generator.generateGraph();
 
-		// 	var nodeNames = _.map(graph.nodes, node => node.name);
-		// 	const nodesAreEqual = _.isEqual(_.sortBy(nodeNames), _.sortBy(this.currentGraphNodes));
+			this.__transform(graph);
 
-		// 	if (!nodesAreEqual) {
-		// 		this.currentGraphNodes = nodeNames;
-		// 		if (this.vizceral.currentGraph) {
-		// 			this.vizceral.currentGraph.layout.cache = [];
-		// 			this.vizceral.currentGraph._relayout();
-		// 		}
-		// 	}
-		// }
+
+			// 	this.vizceral.updateData(graph);
+
+			// 	var nodeNames = _.map(graph.nodes, node => node.name);
+			// 	const nodesAreEqual = _.isEqual(_.sortBy(nodeNames), _.sortBy(this.currentGraphNodes));
+
+			// 	if (!nodesAreEqual) {
+			// 		this.currentGraphNodes = nodeNames;
+			// 		if (this.vizceral.currentGraph) {
+			// 			this.vizceral.currentGraph.layout.cache = [];
+			// 			this.vizceral.currentGraph._relayout();
+			// 		}
+			// 	}
+		}
 
 	}
 
@@ -382,14 +462,15 @@ export class ServiceDependencyGraphCtrl extends MetricsPanelCtrl {
 	}
 
 	runLayout() {
+		const that = this;
 		let options = {
 			name: 'cola',
 			animate: true, // whether to show the layout as it's running
 			refresh: 1, // number of ticks per frame; higher is faster but more jerky
-			maxSimulationTime: 2000, // max length in ms to run the layout
+			maxSimulationTime: 3000, // max length in ms to run the layout
 			ungrabifyWhileSimulating: false, // so you can't drag nodes during layout
 			fit: true, // on every layout reposition of nodes, fit the viewport
-			padding: 30, // padding around the simulation
+			padding: 90, // padding around the simulation
 			boundingBox: undefined, // constrain layout bounds; { x1, y1, x2, y2 } or { x1, y1, w, h }
 			nodeDimensionsIncludeLabels: false, // whether labels should be included in determining the space used by a node
 
@@ -402,7 +483,7 @@ export class ServiceDependencyGraphCtrl extends MetricsPanelCtrl {
 			avoidOverlap: true, // if true, prevents overlap of node bounding boxes
 			handleDisconnected: true, // if true, avoids disconnected components from overlapping
 			convergenceThreshold: 0.01, // when the alpha value (system energy) falls below this value, the layout stops
-			nodeSpacing: function (node) { return 20; }, // extra spacing around nodes
+			nodeSpacing: function (node) { return 50; }, // extra spacing around nodes
 			flow: undefined, // use DAG/tree flow layout if specified, e.g. { axis: 'y', minSeparation: 30 }
 			alignment: undefined, // relative alignment constraints on nodes, e.g. function( node ){ return { x: 0, y: 1 } }
 			gapInequalities: undefined, // list of inequality constraints for the gap between the nodes, e.g. [{"axis":"y", "left":node1, "right":node2, "gap":25}]
@@ -414,7 +495,7 @@ export class ServiceDependencyGraphCtrl extends MetricsPanelCtrl {
 			edgeJaccardLength: undefined, // jaccard edge length in simulation
 
 			// iterations of cola algorithm; uses default values on undefined
-			unconstrIter: undefined, // unconstrained initial layout iterations
+			unconstrIter: 50, // unconstrained initial layout iterations
 			userConstIter: undefined, // initial layout iterations with user-specified constraints
 			allConstIter: undefined, // initial layout iterations with all constraints including non-overlap
 
@@ -500,9 +581,12 @@ export class ServiceDependencyGraphCtrl extends MetricsPanelCtrl {
 	}
 
 	onDataReceived(receivedData) {
-		var preProcessor = new PreProcessor(this);
+		var processedData = this.preProcessor.processData(receivedData);
 
-		var processedData = preProcessor.processData(receivedData);
+		console.group('Processed received data');
+		console.log('raw data: ', receivedData);
+		console.log('processed data: ', processedData);
+		console.groupEnd();
 
 		if (processedData.data.length > 0) {
 			this.currentData = processedData;

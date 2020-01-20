@@ -1,0 +1,195 @@
+import _, { map, flattenDeep, has, omit, groupBy, values, reduce, merge, forOwn } from 'lodash';
+import Utils from '../util/Utils';
+
+interface QueryResponseColumn {
+	type: string;
+	text: string;
+}
+
+interface QueryResponse {
+	columns: QueryResponseColumn[];
+	rows: any[];
+}
+
+interface GraphDataElement {
+	source: string | undefined;
+	target: string;
+	data: any;
+	type: GraphDataType;
+}
+
+enum GraphDataType {
+	SELF = "SELF",
+	INTERNAL = "INTERNAL",
+	EXTERNAL_OUT = "EXTERNAL_OUT",
+	EXTERNAL_IN = "EXTERNAL_IN"
+}
+
+interface GraphData {
+	data: GraphDataElement[];
+	rawData: QueryResponse[];
+}
+
+class PreProcessor {
+
+	controller: any;
+
+	constructor(controller) {
+		this.controller = controller;
+	}
+
+	_transformTable(table: QueryResponse) {
+		const objectTable = map(table.rows, row => {
+			const rowObject: any = {};
+
+			for (var i = 0; i < row.length; i++) {
+				if (row[i] !== "") {
+					const key = table.columns[i].text;
+					rowObject[key] = row[i];
+				}
+			}
+
+			return rowObject;
+		});
+		return objectTable;
+	}
+
+	_transformTables(tables: QueryResponse[]) {
+		const result = map(tables, table => this._transformTable(table));
+		return result;
+	}
+
+	_transformObjects(data: any[]): GraphDataElement[] {
+		const externalSource = Utils.getConfig(this.controller, 'extOrigin');
+		const externalTarget = Utils.getConfig(this.controller, 'extTarget');
+		const aggregationSuffix: string = Utils.getTemplateVariable(this.controller, 'aggregationType');
+		const sourcePrefix: string = Utils.getSourcePrefix(this.controller);
+		const targetPrefix: string = Utils.getTargetPrefix(this.controller);
+
+		const sourceColumn = sourcePrefix + aggregationSuffix;
+		const targetColumn = targetPrefix + aggregationSuffix;
+
+		const result = map(data, dataObject => {
+			const source = has(dataObject, sourceColumn);
+			const target = has(dataObject, targetColumn);
+			const extSource = has(dataObject, externalSource);
+			const extTarget = has(dataObject, externalTarget);
+
+			let trueCount = [source, target, extSource, extTarget].filter(e => e).length;
+
+			if (trueCount > 1) {
+				console.error("soruce-target conflict for data element", dataObject);
+				return;
+			}
+
+			const result: GraphDataElement = {
+				source: undefined,
+				target: "",
+				data: dataObject,
+				type: GraphDataType.SELF
+			};
+
+			if (trueCount == 0) {
+				result.target = dataObject[aggregationSuffix];
+			} else {
+				if (source) {
+					result.source = dataObject[sourceColumn];
+					result.target = dataObject[aggregationSuffix];
+					result.type = GraphDataType.INTERNAL;
+				} else if (target) {
+					result.source = dataObject[aggregationSuffix];
+					result.target = dataObject[targetColumn];
+					result.type = GraphDataType.INTERNAL;
+				} else if (extSource) {
+					result.source = dataObject[externalSource];
+					result.target = dataObject[aggregationSuffix];
+					result.type = GraphDataType.EXTERNAL_IN;
+				} else if (extTarget) {
+					result.source = dataObject[aggregationSuffix];
+					result.target = dataObject[externalTarget];
+					result.type = GraphDataType.EXTERNAL_OUT;
+				}
+			}
+			return result;
+		});
+
+		const filteredResult: GraphDataElement[] = result.filter((element): element is GraphDataElement => element !== null);
+		return filteredResult;
+	}
+
+	_mergeGraphData(data: GraphDataElement[]): GraphDataElement[] {
+		const groupedData = values(groupBy(data, element => element.source + '<--->' + element.target));
+
+		const mergedData = map(groupedData, group => {
+			return reduce(group, (result, next) => {
+				return merge(result, next);
+			}, <GraphDataElement>{});
+		});
+
+		return mergedData;
+	}
+
+	_cleanMetaData(columnMapping: any, metaData: any) {
+		const result = {};
+
+		forOwn(metaData, (value, key) => {
+			if (has(columnMapping, key)) {
+				const targetKey = columnMapping[key];
+				result[targetKey] = metaData[key];
+			}
+		});
+
+		return result;
+	}
+
+	_cleanData(data: GraphDataElement[]): GraphDataElement[] {
+		const columnMapping = {};
+		columnMapping[Utils.getConfig(this.controller, 'responseTimeColumn')] = 'res_time_sum';
+		columnMapping[Utils.getConfig(this.controller, 'requestRateColumn')] = 'rate';
+		columnMapping[Utils.getConfig(this.controller, 'errorRateColumn')] = 'err_rate';
+		columnMapping[Utils.getConfig(this.controller, 'responseTimeOutgoingColumn')] = 'res_time_sum_out';
+		columnMapping[Utils.getConfig(this.controller, 'requestRateOutgoingColumn')] = 'rate_out';
+		columnMapping[Utils.getConfig(this.controller, 'errorRateOutgoingColumn')] = 'err_rate_out';
+		columnMapping[Utils.getConfig(this.controller, 'type')] = 'type';
+
+		const cleanedData = map(data, dataElement => {
+			const cleanedMetaData = this._cleanMetaData(columnMapping, dataElement.data);
+
+			const result = {
+				...dataElement,
+				data: cleanedMetaData
+			};
+
+			return result;
+		});
+
+		return cleanedData;
+	}
+
+	processData(inputData: QueryResponse[]) : GraphData {
+		const objectTables = this._transformTables(inputData);
+
+		const flattenData = flattenDeep(objectTables);
+
+		const graphElements = this._transformObjects(flattenData);
+
+		const mergedData = this._mergeGraphData(graphElements);
+
+		const cleanData = this._cleanData(mergedData);
+
+		console.groupCollapsed('Data transformation log');
+		console.log('Transform tables:', objectTables);
+		console.log('Flat data:', flattenData);
+		console.log('Graph elements:', graphElements);
+		console.log('Merged graph data:', mergedData);
+		console.log('Cleaned data:', cleanData);
+		console.groupEnd();
+
+		return {
+			data: cleanData,
+			rawData: inputData
+		};
+	}
+};
+
+export default PreProcessor;
