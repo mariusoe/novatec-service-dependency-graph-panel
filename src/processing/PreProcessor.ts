@@ -1,6 +1,6 @@
 import _, { map, flattenDeep, has, omit, groupBy, values, reduce, merge, forOwn } from 'lodash';
 import Utils from '../util/Utils';
-import { GraphDataElement, GraphDataType, GraphData } from '../graph/GraphData';
+import { GraphDataElement, GraphDataType } from '../graph/GraphData';
 import { QueryResponse } from './QueryResponse';
 
 class PreProcessor {
@@ -143,7 +143,7 @@ class PreProcessor {
 		return cleanedData;
 	}
 
-	processData(inputData: QueryResponse[]): GraphData {
+	processData(inputData: QueryResponse[]): GraphDataElement[] {
 		const objectTables = this._transformTables(inputData);
 
 		const flattenData = flattenDeep(objectTables);
@@ -162,10 +162,7 @@ class PreProcessor {
 		console.log('Cleaned data:', cleanData);
 		console.groupEnd();
 
-		return {
-			data: cleanData,
-			rawData: inputData
-		};
+		return cleanData;
 	}
 };
 

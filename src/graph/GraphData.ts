@@ -1,5 +1,3 @@
-import { QueryResponse } from '../processing/QueryResponse';
-
 export interface DataElement {
     rate_in?: number;
     rate_out?: number;
@@ -22,9 +20,4 @@ export enum GraphDataType {
     INTERNAL = 'INTERNAL',
     EXTERNAL_OUT = 'EXTERNAL_OUT',
     EXTERNAL_IN = 'EXTERNAL_IN'
-};
-
-export interface GraphData {
-    data: GraphDataElement[];
-    rawData: QueryResponse[];
 };

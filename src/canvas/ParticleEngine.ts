@@ -1,6 +1,7 @@
 import CanvasDrawer from "./GraphCanvas";
-import _ from 'lodash';
+import _, {defaultTo} from 'lodash';
 import { Particle, Particles } from './Particle';
+import { IGraphMetrics } from "../graph/Graph";
 
 export default class ParticleEngine {
 
@@ -37,17 +38,19 @@ export default class ParticleEngine {
 
         cy.edges().forEach(edge => {
             let particles: Particles = edge.data('particles');
-            const metrics = edge.data('metrics');
+            const metrics: IGraphMetrics = edge.data('metrics');
 
             if (!metrics) {
                 return;
             }
 
-            const volume = Math.max(0, metrics.normal) + Math.max(0, metrics.danger);
+            const rate = defaultTo(metrics.rate, 0);
+            const error_rate = defaultTo(metrics.error_rate, 0);
+            const volume = rate + error_rate;
 
             let errorRate;
-            if (metrics.normal >= 0 && metrics.danger >= 0) {
-                errorRate = metrics.danger / (metrics.normal + metrics.danger);
+            if (rate >= 0 && error_rate >= 0) {
+                errorRate = error_rate / (rate + error_rate);
             } else {
                 errorRate = 0;
             }

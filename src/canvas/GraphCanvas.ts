@@ -545,7 +545,7 @@ export default class CanvasDrawer {
         ctx.fill();
 
         const nodeType = node.data('external_type');
-        //const image = this.controller.getTypeSymbol(nodeType);
+        
         const image = this._getImageAsset(nodeType);
         if (image != null) {
             ctx.drawImage(image, cX - size / 2, cY - size / 2, size, size);
