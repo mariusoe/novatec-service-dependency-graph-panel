@@ -2,6 +2,7 @@ import _ from 'lodash';
 import { ServiceDependencyGraphCtrl } from '../service_dependency_graph_ctrl';
 import ParticleEngine from './ParticleEngine';
 import { Particle, Particles } from './Particle';
+import { EGraphNodeType, IGraphMetrics } from '../graph/Graph';
 
 interface CyCanvas {
     getCanvas: () => HTMLCanvasElement;
@@ -323,10 +324,10 @@ export default class CanvasDrawer {
 
         let statistics: string[] = [];
 
-        const metrics = edge.data('metrics');
-        const duration = _.get(metrics, 'duration', -1);
-        const requestCount = _.get(metrics, 'normal', -1);
-        const errorCount = _.get(metrics, 'danger', -1);
+        const metrics: IGraphMetrics = edge.data('metrics');
+        const duration = _.defaultTo(metrics.response_time, -1);
+        const requestCount = _.defaultTo(metrics.rate, -1);
+        const errorCount = _.defaultTo(metrics.error_rate, -1);
 
         if (duration >= 0) {
             statistics.push(Math.floor(duration) + ' ms');
@@ -470,11 +471,11 @@ export default class CanvasDrawer {
     _drawNode(ctx: CanvasRenderingContext2D, node: cytoscape.NodeSingular) {
         const cy = this.cytoscape;
         const type = node.data('type');
-        const metrics = node.data('metrics');
+        const metrics: IGraphMetrics = node.data('metrics');
 
-        if (type === 'service') {
-            const requestCount = _.get(metrics, 'requestCount', 1);
-            const errorCount = _.get(metrics, 'errorCount', 0);
+        if (type === EGraphNodeType.INTERNAL) {
+            const requestCount = _.defaultTo(metrics.rate, 1);
+            const errorCount = _.defaultTo(metrics.error_rate, 0);
 
             const totalCount = requestCount + errorCount;
             var healthyPct;
@@ -501,9 +502,9 @@ export default class CanvasDrawer {
         const lines: string[] = [];
 
         const metrics = node.data('metrics');
-        const requestCount = _.get(metrics, 'requestCount', -1);
-        const errorCount = _.get(metrics, 'errorCount', -1);
-        const responseTime = _.get(metrics, 'responseTime', -1);
+        const requestCount = _.get(metrics, 'rate', -1);
+        const errorCount = _.get(metrics, 'error_rate', -1);
+        const responseTime = _.get(metrics, 'response_time', -1);
 
         if (requestCount >= 0) {
             lines.push('Requests: ' + requestCount);
@@ -543,7 +544,7 @@ export default class CanvasDrawer {
         ctx.fillStyle = this.colors.background;
         ctx.fill();
 
-        const nodeType = node.data('type');
+        const nodeType = node.data('external_type');
         //const image = this.controller.getTypeSymbol(nodeType);
         const image = this._getImageAsset(nodeType);
         if (image != null) {

@@ -1,27 +1,31 @@
 import _ from 'lodash';
 
+export function isPresent<T>(t: T | undefined | null | void): t is T {
+	return t !== undefined && t !== null;
+};
+
 export default {
 
-	getTemplateVariable: function(controller, variableName) {
+	getTemplateVariable: function (controller, variableName) {
 		var templateVariable: any = _.find(controller.dashboard.templating.list, {
 			name: variableName
 		});
 		return templateVariable.current.value;
 	},
 
-	getConfig: function(controller, configName) {
+	getConfig: function (controller, configName) {
 		return controller.panel.dataMapping[configName];
 	},
 
-	getSourcePrefix: function(controller) {
+	getSourcePrefix: function (controller) {
 		return this.getConfig(controller, 'sourceComponentPrefix');
 	},
 
-	getTargetPrefix: function(controller) {
+	getTargetPrefix: function (controller) {
 		return this.getConfig(controller, 'targetComponentPrefix');
 	},
 
-	getTemplateVariableValues: function(controller, variableName) {
+	getTemplateVariableValues: function (controller, variableName) {
 		var templateVariable: any = _.find(controller.dashboard.templating.list, {
 			name: variableName
 		});

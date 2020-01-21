@@ -1,24 +1,7 @@
-import _, { has, find, flatMap, uniq, groupBy, filter, map, sum, some } from 'lodash';
+import _, { has, find, flatMap, uniq, groupBy, filter, map, sum, some, isUndefined } from 'lodash';
 import { GraphData, GraphDataElement, GraphDataType } from './GraphData';
-
-interface GraphNodeMetrics {
-	rate?: number;
-	error_rate?: number;
-	response_time?: number;
-	success_rate?: number;
-}
-
-enum GraphNodeType {
-	INTERNAL = 'INTERNAL',
-	EXTERNAL = 'EXTERNAL'
-}
-
-interface GraphNode {
-	name: string;
-	type: GraphNodeType;
-	metrics?: GraphNodeMetrics;
-	external_type?: string;
-}
+import { isPresent } from '../util/Utils';
+import {IGraph, IGraphEdge, IGraphMetrics, IGraphNode, EGraphNodeType} from './Graph';
 
 class GraphGenerator {
 
@@ -30,18 +13,18 @@ class GraphGenerator {
 		this.controller = panelController;
 	}
 
-	_createNode(dataElements: GraphDataElement[]): GraphNode | undefined {
+	_createNode(dataElements: GraphDataElement[]): IGraphNode | undefined {
 		if (!dataElements || dataElements.length <= 0) {
 			return undefined;
 		}
 
 		const nodeName = dataElements[0].target;
 		const internalNode = some(dataElements, ['type', GraphDataType.INTERNAL]) || some(dataElements, ['type', GraphDataType.EXTERNAL_IN]);
-		const nodeType = internalNode ? GraphNodeType.INTERNAL : GraphNodeType.EXTERNAL;
+		const nodeType = internalNode ? EGraphNodeType.INTERNAL : EGraphNodeType.EXTERNAL;
 
-		const metrics: GraphNodeMetrics = {};
+		const metrics: IGraphMetrics = {};
 
-		const node: GraphNode = {
+		const node: IGraphNode = {
 			name: nodeName,
 			type: nodeType,
 			metrics
@@ -75,41 +58,78 @@ class GraphGenerator {
 		return node;
 	}
 
-	_createNodes(data: GraphDataElement[]): GraphNode[] {
+	_createNodes(data: GraphDataElement[]): IGraphNode[] {
 		const filteredData = filter(data, dataElement => dataElement.source !== dataElement.target);
 
 		const targetGroups = groupBy(filteredData, 'target');
 
 		const nodes = map(targetGroups, group => this._createNode(group));
-
-		const filteredNodes: GraphNode[] = nodes.filter((node): node is GraphNode => node !== null);
-		return filteredNodes;
+		return nodes.filter(isPresent);
 	}
 
+	_createEdge(dataElement: GraphDataElement): IGraphEdge | undefined {
+		const { source, target } = dataElement;
 
-	generateGraphNew(graphData: GraphData) {
+		if (source === undefined || target === undefined) {
+			console.error("source and target are necessary to create an edge", dataElement);
+			return undefined;
+		}
+
+		const metrics: IGraphMetrics = {};
+
+		const edge: IGraphEdge = {
+			source,
+			target,
+			metrics
+		};
+
+		const { rate_out, error_rate_out, response_time_out } = dataElement.data;
+
+		if (!isUndefined(rate_out)) {
+			metrics.rate = rate_out;
+		}
+		if (!isUndefined(error_rate_out)) {
+			metrics.error_rate = error_rate_out;
+		}
+		if (!isUndefined(response_time_out)) {
+			metrics.response_time = response_time_out;
+		}
+
+		return edge;
+	}
+
+	_createEdges(data: GraphDataElement[]): IGraphEdge[] {
+
+		const filteredData = _(data)
+			.filter(e => !!e.source)
+			.filter(e => e.source !== e.target)
+			.value();
+
+		const edges = map(filteredData, element => this._createEdge(element));
+		return edges.filter(isPresent);
+	}
+
+	generateGraph(graphData: GraphData) : IGraph {
 		const { data } = graphData;
 
 		const nodes = this._createNodes(data);
-
-
-		debugger;
+		const edges = this._createEdges(data);
 
 		console.groupCollapsed('Graph generated');
 		console.log('Input data:', data);
 		console.log('Nodes:', nodes);
+		console.log('Edges:', edges);
 		console.groupEnd();
 
-		return nodes;
-		// const nodeName: string[] = _(data)
-		// 	.flatMap(dataElement => [dataElement.source, dataElement.target])
-		// 	.uniq()
-		// 	.filter()
-		// 	.value();
-		//const nodeNames: string[] = uniq(flatMap(data, dataElement => [dataElement.source, dataElement.target]));
+		const graph : IGraph = {
+			nodes,
+			edges
+		};
+
+		return graph;
 	}
 
-	generateGraph() {
+	generateGraphOld() {
 		//TODO ensure that data has correct format => data processor
 		const { data } = this;
 

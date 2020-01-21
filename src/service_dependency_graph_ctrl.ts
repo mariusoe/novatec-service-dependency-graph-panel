@@ -1,10 +1,10 @@
 import { MetricsPanelCtrl } from 'grafana/app/plugins/sdk';
-import _, { find } from 'lodash';
+import _, { find, map } from 'lodash';
 import { optionsTab } from './options_ctrl';
 import './css/novatec-service-dependency-graph-panel.css';
 import PreProcessor from './processing/PreProcessor'
 
-import { GraphData } from './graph/GraphData';
+import { GraphData, GraphDataType } from './graph/GraphData';
 import GraphGenerator from './graph/GraphGenerator'
 
 import GraphCanvas from './canvas/GraphCanvas';
@@ -14,6 +14,7 @@ import cyCanvas from 'cytoscape-canvas';
 
 import test_nodes from './test-data/graph';
 import test_edges from './test-data/connections';
+import { IGraph, IGraphNode, EGraphNodeType, IGraphEdge } from './graph/Graph';
 
 
 // Register cytoscape extensions
@@ -126,6 +127,61 @@ export class ServiceDependencyGraphCtrl extends MetricsPanelCtrl {
 
 	onObjectHighlighted(object) {
 		//TODO handle event
+	}
+
+	_updateGraph(graph: IGraph) {
+		const cyNodes = this._transformNodes(graph.nodes);
+		const cyEdges = this._transformEdges(graph.edges);
+
+		console.groupCollapsed("Cytoscape input data");
+		console.log("cytoscape nodes: ", cyNodes);
+		console.log("cytoscape edges: ", cyEdges);
+		console.groupEnd();
+
+		this.cy.elements().remove();
+		(<any>this.cy).add(cyNodes);
+		(<any>this.cy).add(cyEdges);
+
+		this.runLayout();
+	}
+
+	_transformEdges(edges: IGraphEdge[]) {
+		const cyEdges = map(edges, edge => {
+			const cyEdge = {
+				group: 'edges',
+				data: {
+					id: edge.source + ":" + edge.target,
+					source: edge.source,
+					target: edge.target,
+					metrics: {
+						...edge.metrics
+					}
+				}
+			};
+
+			return cyEdge;
+		});
+
+		return cyEdges;
+	}
+
+	_transformNodes(nodes: IGraphNode[]) {
+		const cyNodes = map(nodes, node => {
+			const result = {
+				group: 'nodes',
+				data: {
+					id: node.name,
+					type: node.type,
+					external_type: node.external_type,
+					metrics: {
+						...node.metrics
+					}
+				}
+			};
+			return result;
+		});
+
+		return cyNodes;
 	}
 
 	__transform(graph: any) {
@@ -429,11 +485,11 @@ export class ServiceDependencyGraphCtrl extends MetricsPanelCtrl {
 		// }
 
 		if (this.dataAvailable()) {
-			var generator = new GraphGenerator(this, this.currentData);
-			var graph = generator.generateGraph();
-			generator.generateGraphNew(this.currentData);
+			const generator = new GraphGenerator(this, this.currentData);
+			const graph: IGraph = generator.generateGraph(this.currentData);
 
-			this.__transform(graph);
+			this._updateGraph(graph);
+			//this.__transform(graph);
 
 
 			// 	this.vizceral.updateData(graph);
