@@ -1,20 +1,23 @@
-import _, { groupBy, filter, map, sum, some, isUndefined } from 'lodash';
-import { GraphData, GraphDataElement, GraphDataType } from './GraphData';
+import _, { groupBy, filter, map, sum, some, isUndefined, uniq, difference, flatMap, concat, mean, defaultTo } from 'lodash';
+import { GraphDataElement, GraphDataType } from './GraphData';
 import { isPresent } from '../util/Utils';
-import {IGraph, IGraphEdge, IGraphMetrics, IGraphNode, EGraphNodeType} from './Graph';
+import { IGraph, IGraphEdge, IGraphMetrics, IGraphNode, EGraphNodeType } from './Graph';
+import { ServiceDependencyGraphCtrl } from '../service_dependency_graph_ctrl';
 
 class GraphGenerator {
 
-	controller: any;
+	controller: ServiceDependencyGraphCtrl;
 
-	constructor(panelController) {
-		this.controller = panelController;
+	constructor(controller: ServiceDependencyGraphCtrl) {
+		this.controller = controller;
 	}
 
 	_createNode(dataElements: GraphDataElement[]): IGraphNode | undefined {
 		if (!dataElements || dataElements.length <= 0) {
 			return undefined;
 		}
+
+		const sumMetrics = this.controller.getSettings().sumTimings;
 
 		const nodeName = dataElements[0].target;
 		const internalNode = some(dataElements, ['type', GraphDataType.INTERNAL]) || some(dataElements, ['type', GraphDataType.EXTERNAL_IN]);
@@ -28,14 +31,16 @@ class GraphGenerator {
 			metrics
 		};
 
+		const aggregationFunction = sumMetrics ? sum : mean;
+
 		if (internalNode) {
 			metrics.rate = sum(map(dataElements, element => element.data.rate_in));
 			metrics.error_rate = sum(map(dataElements, element => element.data.error_rate_in));
-			metrics.response_time = sum(map(dataElements, element => element.data.response_time_in));
+			metrics.response_time = aggregationFunction(map(dataElements, element => element.data.response_time_in));
 		} else {
 			metrics.rate = sum(map(dataElements, element => element.data.rate_out));
 			metrics.error_rate = sum(map(dataElements, element => element.data.error_rate_out));
-			metrics.response_time = sum(map(dataElements, element => element.data.response_time_out));
+			metrics.response_time = aggregationFunction(map(dataElements, element => element.data.response_time_out));
 
 			const externalType = _(dataElements)
 				.map(element => element.data.type)
@@ -43,6 +48,13 @@ class GraphGenerator {
 				.value();
 			if (externalType.length == 1) {
 				node.external_type = externalType[0];
+			}
+		}
+
+		if (sumMetrics) {
+			const requestCount = defaultTo(metrics.rate, 0) + defaultTo(metrics.error_rate, 0);
+			if (requestCount > 0) {
+				metrics.response_time = metrics.response_time / requestCount;
 			}
 		}
 
@@ -56,13 +68,30 @@ class GraphGenerator {
 		return node;
 	}
 
+	_createMissingNodes(data: GraphDataElement[], nodes: IGraphNode[]): IGraphNode[] {
+		const existingNodeNames = map(nodes, node => node.name);
+		const expectedNodeNames = uniq(flatMap(data, dataElement => [dataElement.source, dataElement.target])).filter(isPresent);
+		const missingNodeNames = difference(expectedNodeNames, existingNodeNames);
+
+		const missingNodes = map(missingNodeNames, name => <IGraphNode>{
+			name,
+			type: EGraphNodeType.INTERNAL
+		});
+
+		return missingNodes;
+	}
+
 	_createNodes(data: GraphDataElement[]): IGraphNode[] {
 		const filteredData = filter(data, dataElement => dataElement.source !== dataElement.target);
 
 		const targetGroups = groupBy(filteredData, 'target');
 
-		const nodes = map(targetGroups, group => this._createNode(group));
-		return nodes.filter(isPresent);
+		const nodes = map(targetGroups, group => this._createNode(group)).filter(isPresent);
+
+		// ensure that all nodes exist, even we have no data for them
+		const missingNodes = this._createMissingNodes(filteredData, nodes);
+
+		return concat(nodes, missingNodes);
 	}
 
 	_createEdge(dataElement: GraphDataElement): IGraphEdge | undefined {
@@ -107,17 +136,35 @@ class GraphGenerator {
 		return edges.filter(isPresent);
 	}
 
-	generateGraph(graphData: GraphDataElement[]) : IGraph {
-		const nodes = this._createNodes(graphData);
-		const edges = this._createEdges(graphData);
+	_filterData(data: GraphDataElement[]): GraphDataElement[] {
+		const { filterEmptyConnections: filterData } = this.controller.getSettings();
+
+		if (filterData) {
+			return filter(data, dataElement => {
+				return defaultTo(dataElement.data.rate_in, 0) > 0
+					|| defaultTo(dataElement.data.rate_out, 0) > 0
+					|| defaultTo(dataElement.data.error_rate_in, 0) > 0
+					|| defaultTo(dataElement.data.error_rate_out, 0) > 0;
+			});
+		} else {
+			return data;
+		}
+	}
+
+	generateGraph(graphData: GraphDataElement[]): IGraph {
+		const filteredData = this._filterData(graphData);
+
+		const nodes = this._createNodes(filteredData);
+		const edges = this._createEdges(filteredData);
 
 		console.groupCollapsed('Graph generated');
 		console.log('Input data:', graphData);
+		console.log('Filtered data:', filteredData);
 		console.log('Nodes:', nodes);
 		console.log('Edges:', edges);
 		console.groupEnd();
 
-		const graph : IGraph = {
+		const graph: IGraph = {
 			nodes,
 			edges
 		};

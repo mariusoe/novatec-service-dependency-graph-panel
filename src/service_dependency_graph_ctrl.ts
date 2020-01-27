@@ -12,23 +12,46 @@ import cytoscape from 'cytoscape';
 import cola from 'cytoscape-cola';
 import cyCanvas from 'cytoscape-canvas';
 
-import test_nodes from './test-data/graph';
-import test_edges from './test-data/connections';
 import { IGraph, IGraphNode, IGraphEdge } from './graph/Graph';
-
 
 // Register cytoscape extensions
 cyCanvas(cytoscape);
 cytoscape.use(cola);
+
+interface DataMapping {
+	sourceComponentPrefix: string;
+	targetComponentPrefix: string;
+
+	responseTimeColumn: string;
+	requestRateColumn: string;
+	errorRateColumn: string;
+	responseTimeOutgoingColumn: string;
+	requestRateOutgoingColumn: string;
+	errorRateOutgoingColumn: string;
+
+	extOrigin: string;
+	extTarget: string;
+	type: string;
+}
+
+interface Settings {
+	sumTimings: boolean;
+	filterEmptyConnections: boolean;
+	style: {
+		healthyColor: string;
+		dangerColor: string;
+	}
+}
 
 export class ServiceDependencyGraphCtrl extends MetricsPanelCtrl {
 
 	static templateUrl = 'partials/module.html';
 
 	panelDefaults = {
-		dataMapping: {
+		dataMapping: <DataMapping>{
 			sourceComponentPrefix: "origin_",
 			targetComponentPrefix: "target_",
+
 			responseTimeColumn: "response-time",
 			requestRateColumn: "request-rate",
 			errorRateColumn: "error-rate",
@@ -44,12 +67,10 @@ export class ServiceDependencyGraphCtrl extends MetricsPanelCtrl {
 			healthyColor: 'rgb(87, 148, 242)',
 			dangerColor: 'rgb(184, 36, 36)'
 		},
-		sdgSettings: {
+		sdgSettings: <Settings>{
 			animate: true,
 			sumTimings: false,
 			showConnectionStats: true,
-			layout: 'ltrTree',
-			maxVolume: 10000,
 			filterEmptyConnections: true,
 			externalIcons: [
 				{
@@ -68,7 +89,11 @@ export class ServiceDependencyGraphCtrl extends MetricsPanelCtrl {
 					type: 'http',
 					icon: 'http'
 				}
-			]
+			],
+			style: {
+				healthyColor: 'rgb(87, 148, 242)',
+				dangerColor: 'rgb(184, 36, 36)'
+			}
 		}
 	};
 
@@ -195,89 +220,6 @@ export class ServiceDependencyGraphCtrl extends MetricsPanelCtrl {
 		return cyNodes;
 	}
 
-	__transform(graph: any) {
-		const n = graph.nodes;
-		const e = graph.connections;
-		//debugger;
-
-		const nodes = _(n)
-			.filter(node => node.name !== '__ENTRY__')
-			.map(node => {
-				const type = _.get(node, 'metadata.external_type', 'service');
-
-				if (type === 'service') {
-					const { healthyPct, errorPct } = node.donutMetrics;
-					const metrics = {
-						...node.metrics,
-						healthyPct,
-						errorPct
-					};
-
-					return {
-						group: 'nodes',
-						data: {
-							id: node.name,
-							type,
-							metrics
-						}
-					}
-				} else {
-					return {
-						group: 'nodes',
-						data: {
-							id: node.name,
-							type
-						}
-					}
-				}
-			})
-			.value();
-
-		const edges = _(e)
-			.filter(edge => edge.source !== '__ENTRY__' && edge.target !== '__ENTRY__')
-			.filter(edge => _.get(edge, 'metrics.normal', 0) > 0 || _.get(edge, 'metrics.danger', 0) > 0)
-			.map(edge => {
-				const normal = _.get(edge, 'metrics.normal', -1);
-				const danger = _.get(edge, 'metrics.danger', -1);
-				const duration = _.get(edge, 'metadata.connectionTime', -1);
-
-				return {
-					group: 'edges',
-					data: {
-						id: edge.source + ":" + edge.target,
-						source: edge.source,
-						target: edge.target,
-						metrics: {
-							normal,
-							danger,
-							duration
-						}
-					}
-				}
-			})
-			.value();
-
-		this.cy.elements().remove();
-		(<any>this.cy).add(nodes);
-		(<any>this.cy).add(edges);
-
-		this.cy.nodes().each(node => {
-			if (node.neighborhood().size() <= 0) {
-				for (var key of ['metrics.requestCount', 'metrics.errorCount', 'metrics.responseTime']) {
-					if (_.get(node.data, key, 0) > 0) {
-						return;
-					}
-				}
-
-				node.remove();
-			}
-		});
-
-		this.runLayout();
-	}
-
-	
-
 	_initCytoscape() {
 		const that = this;
 
@@ -301,83 +243,6 @@ export class ServiceDependencyGraphCtrl extends MetricsPanelCtrl {
 			],
 			wheelSensitivity: 0.125
 		});
-
-		// const n = test_nodes;
-		// const e = test_edges;
-		// //debugger;
-
-		// const nodes = _(n)
-		// 	.filter(node => node.name !== '__ENTRY__')
-		// 	.map(node => {
-		// 		const type = _.get(node, 'metadata.external_type', 'service');
-
-		// 		if (type === 'service') {
-		// 			const { healthyPct, errorPct } = node.donutMetrics;
-		// 			const metrics = {
-		// 				...node.metrics,
-		// 				healthyPct,
-		// 				errorPct
-		// 			};
-
-		// 			return {
-		// 				group: 'nodes',
-		// 				data: {
-		// 					id: node.name,
-		// 					type,
-		// 					metrics
-		// 				}
-		// 			}
-		// 		} else {
-		// 			return {
-		// 				group: 'nodes',
-		// 				data: {
-		// 					id: node.name,
-		// 					type
-		// 				}
-		// 			}
-		// 		}
-		// 	})
-		// 	.value();
-
-		// const edges = _(e)
-		// 	.filter(edge => edge.source !== '__ENTRY__' && edge.target !== '__ENTRY__')
-		// 	.filter(edge => _.get(edge, 'metrics.normal', 0) > 0 || _.get(edge, 'metrics.danger', 0) > 0)
-		// 	.map(edge => {
-		// 		const normal = _.get(edge, 'metrics.normal', -1);
-		// 		const danger = _.get(edge, 'metrics.danger', -1);
-		// 		const duration = _.get(edge, 'metadata.connectionTime', -1);
-
-		// 		return {
-		// 			group: 'edges',
-		// 			data: {
-		// 				id: edge.source + ":" + edge.target,
-		// 				source: edge.source,
-		// 				target: edge.target,
-		// 				metrics: {
-		// 					normal,
-		// 					danger,
-		// 					duration
-		// 				}
-		// 			}
-		// 		}
-		// 	})
-		// 	.value();
-
-		// (<any>this.cy).add(nodes);
-		// (<any>this.cy).add(edges);
-
-		// // ???
-		// this.cy.nodes().each(node => {
-		// 	if (node.neighborhood().size() <= 0) {
-		// 		for (var key of ['metrics.requestCount', 'metrics.errorCount', 'metrics.responseTime']) {
-		// 			if (_.get(node.data, key, 0) > 0) {
-		// 				return;
-		// 			}
-		// 		}
-
-		// 		node.remove();
-		// 	}
-		// });
 
 		// create canvas layer
 		const layer = (<any>this.cy).cyCanvas({
@@ -521,20 +386,18 @@ export class ServiceDependencyGraphCtrl extends MetricsPanelCtrl {
 		}
 		const mapping = find(this.panel.sdgSettings.externalIcons, e => e.type.toLowerCase() === type.toLowerCase());
 
-		// debugger;
-
-		// const typeLC = type.toLowerCase();
-		// const iconMap = {
-		// 	'database': 'database.png',
-		// 	'jms': 'message.png',
-		// 	'web': 'web.png',
-		// 	'http': 'http.png'
-		// };
-
 		if (mapping !== undefined) {
 			return this.getAssetUrl(mapping.icon + '.png');
 		} else {
 			return this.getAssetUrl('default.png');
 		}
+	}
+
+	getDataMapping(): DataMapping {
+		return this.panel.dataMapping;
+	}
+
+	getSettings(): Settings {
+		return this.panel.sdgSettings;
 	}
 }

@@ -20,9 +20,7 @@ export default class CanvasDrawer {
         background: '#212121',
         edge: '#505050',
         status: {
-            normal: '#5794f2',
-            warning: 'orange',
-            error: '#b82424'
+            warning: 'orange'
         }
     };
 
@@ -598,7 +596,8 @@ export default class CanvasDrawer {
         ctx.fillStyle = 'white';
         ctx.fill();
 
-        const colors = [this.colors.status.error, this.colors.status.warning, this.colors.status.normal];
+        const {healthyColor, dangerColor} = this.controller.getSettings().style;
+        const colors = [dangerColor, this.colors.status.warning, healthyColor];
         for (let i = 0; i < percentages.length; i++) {
             let arc = this._drawArc(ctx, currentArc, cX, cY, radius, percentages[i], colors[i]);
             currentArc += arc;

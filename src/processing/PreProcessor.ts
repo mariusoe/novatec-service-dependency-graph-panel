@@ -1,13 +1,14 @@
-import _, { map, flattenDeep, has, omit, groupBy, values, reduce, merge, forOwn } from 'lodash';
+import _, { map, flattenDeep, has, groupBy, values, reduce, merge, forOwn } from 'lodash';
 import Utils from '../util/Utils';
 import { GraphDataElement, GraphDataType } from '../graph/GraphData';
 import { QueryResponse } from './QueryResponse';
+import { ServiceDependencyGraphCtrl } from '../service_dependency_graph_ctrl';
 
 class PreProcessor {
 
-	controller: any;
+	controller: ServiceDependencyGraphCtrl;
 
-	constructor(controller) {
+	constructor(controller: ServiceDependencyGraphCtrl) {
 		this.controller = controller;
 	}
 
@@ -33,14 +34,11 @@ class PreProcessor {
 	}
 
 	_transformObjects(data: any[]): GraphDataElement[] {
-		const externalSource = Utils.getConfig(this.controller, 'extOrigin');
-		const externalTarget = Utils.getConfig(this.controller, 'extTarget');
+		const { extOrigin: externalSource, extTarget: externalTarget, sourceComponentPrefix, targetComponentPrefix } = this.controller.getDataMapping();
 		const aggregationSuffix: string = Utils.getTemplateVariable(this.controller, 'aggregationType');
-		const sourcePrefix: string = Utils.getSourcePrefix(this.controller);
-		const targetPrefix: string = Utils.getTargetPrefix(this.controller);
 
-		const sourceColumn = sourcePrefix + aggregationSuffix;
-		const targetColumn = targetPrefix + aggregationSuffix;
+		const sourceColumn = sourceComponentPrefix + aggregationSuffix;
+		const targetColumn = targetComponentPrefix + aggregationSuffix;
 
 		const result = map(data, dataObject => {
 			const source = has(dataObject, sourceColumn);
