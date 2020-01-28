@@ -1,47 +1,22 @@
 import { MetricsPanelCtrl } from 'grafana/app/plugins/sdk';
-import _, { find, map, isUndefined } from 'lodash';
+import _, { find, map, isUndefined, remove } from 'lodash';
 import { optionsTab } from './options_ctrl';
 import './css/novatec-service-dependency-graph-panel.css';
-import PreProcessor from './processing/PreProcessor'
+import PreProcessor from './processing/pre_processor'
 
-import { GraphDataElement } from './graph/GraphData';
-import GraphGenerator from './graph/GraphGenerator'
+import GraphGenerator from './processing/graph_generator'
 
-import GraphCanvas from './canvas/GraphCanvas';
-import cytoscape from 'cytoscape';
+import GraphCanvas from './canvas/graph_canvas';
+import cytoscape, { NodeSingular, EdgeSingular } from 'cytoscape';
 import cola from 'cytoscape-cola';
 import cyCanvas from 'cytoscape-canvas';
 
-import { IGraph, IGraphNode, IGraphEdge } from './graph/Graph';
+import layoutOptions from './layout_options';
+import { DataMapping, IGraph, IGraphNode, IGraphEdge, CyData, PanelSettings, GraphDataElement } from './types';
 
 // Register cytoscape extensions
 cyCanvas(cytoscape);
 cytoscape.use(cola);
-
-interface DataMapping {
-	sourceComponentPrefix: string;
-	targetComponentPrefix: string;
-
-	responseTimeColumn: string;
-	requestRateColumn: string;
-	errorRateColumn: string;
-	responseTimeOutgoingColumn: string;
-	requestRateOutgoingColumn: string;
-	errorRateOutgoingColumn: string;
-
-	extOrigin: string;
-	extTarget: string;
-	type: string;
-}
-
-interface Settings {
-	sumTimings: boolean;
-	filterEmptyConnections: boolean;
-	style: {
-		healthyColor: string;
-		dangerColor: string;
-	}
-}
 
 export class ServiceDependencyGraphCtrl extends MetricsPanelCtrl {
 
@@ -67,7 +42,7 @@ export class ServiceDependencyGraphCtrl extends MetricsPanelCtrl {
 			healthyColor: 'rgb(87, 148, 242)',
 			dangerColor: 'rgb(184, 36, 36)'
 		},
-		sdgSettings: <Settings>{
+		sdgSettings: <PanelSettings>{
 			animate: true,
 			sumTimings: false,
 			showConnectionStats: true,
@@ -103,7 +78,7 @@ export class ServiceDependencyGraphCtrl extends MetricsPanelCtrl {
 
 	graphCanvas: GraphCanvas;
 
-	initResize: boolean = false;
+	initResize: boolean = true;
 
 	preProcessor: PreProcessor = new PreProcessor(this);
 
@@ -131,6 +106,10 @@ export class ServiceDependencyGraphCtrl extends MetricsPanelCtrl {
 		this.graphContainer = element.find('.sdg-container')[0];
 	}
 
+	onRefresh() {
+		console.log("refresh");
+	}
+
 	toggleAnimation() {
 		this.panel.sdgSettings.animate = !this.panel.sdgSettings.animate;
 
@@ -150,38 +129,61 @@ export class ServiceDependencyGraphCtrl extends MetricsPanelCtrl {
 	isDataAvailable() {
 		const dataExist = !isUndefined(this.currentData) && this.currentData.length > 0;
 		return dataExist;
-
-	}
-
-	updateSDGStyle() {
-		// update styles ? noch benötigt?
-	}
-
-	forceRender() {
-		this.render();
 	}
 
 	onObjectHighlighted(object) {
 		//TODO handle event
 	}
 
+	_updateOrRemove(dataArray: (NodeSingular | EdgeSingular)[], inputArray: CyData[]) {
+		for (let i = 0; i < dataArray.length; i++) {
+			const element = dataArray[i];
+
+			const cyNode = find(inputArray, { data: { id: element.id() } });
+
+			if (cyNode) {
+				element.data(cyNode.data);
+				remove(inputArray, n => n.data.id === cyNode.data.id);
+			} else {
+				element.remove();
+			}
+		}
+	}
+
 	_updateGraph(graph: IGraph) {
 		const cyNodes = this._transformNodes(graph.nodes);
 		const cyEdges = this._transformEdges(graph.edges);
 
-		console.groupCollapsed("Cytoscape input data");
-		console.log("cytoscape nodes: ", cyNodes);
-		console.log("cytoscape edges: ", cyEdges);
+		console.groupCollapsed("Updating graph");
+		console.log("cytoscape nodes: ", JSON.parse(JSON.stringify(cyNodes)));
+		console.log("cytoscape edges: ", JSON.parse(JSON.stringify(cyEdges)));
 		console.groupEnd();
 
-		this.cy.elements().remove();
+		const nodes = this.cy.nodes().toArray();
+		this._updateOrRemove(nodes, cyNodes);
+
+		// add new nodes
 		(<any>this.cy).add(cyNodes);
+
+		const edges = this.cy.edges().toArray();
+		this._updateOrRemove(edges, cyEdges);
+
+		// add new edges
 		(<any>this.cy).add(cyEdges);
 
-		this.runLayout();
+		if (this.initResize) {
+			this.initResize = false;
+			this.cy.resize();
+			this.cy.reset();
+			this.runLayout();
+		} else {
+			if (cyNodes.length > 0) {
+				this.runLayout();
+			}
+		}
 	}
 
-	_transformEdges(edges: IGraphEdge[]) {
+	_transformEdges(edges: IGraphEdge[]): CyData[] {
 		const cyEdges = map(edges, edge => {
 			const cyEdge = {
 				group: 'edges',
@@ -201,9 +203,9 @@ export class ServiceDependencyGraphCtrl extends MetricsPanelCtrl {
 		return cyEdges;
 	}
 
-	_transformNodes(nodes: IGraphNode[]) {
+	_transformNodes(nodes: IGraphNode[]): CyData[] {
 		const cyNodes = map(nodes, node => {
-			const result = {
+			const result: CyData = {
 				group: 'nodes',
 				data: {
 					id: node.name,
@@ -279,61 +281,15 @@ export class ServiceDependencyGraphCtrl extends MetricsPanelCtrl {
 
 		if (this.isDataAvailable()) {
 			const graph: IGraph = this.graphGenerator.generateGraph(this.currentData);
-
 			this._updateGraph(graph);
 		}
 	}
 
-	onRefresh() {
-		console.log("refresh");
-
-		if (!this.initResize) {
-			this.initResize = true;
-			this.cy.resize();
-			this.cy.reset();
-			this.runLayout();
-		}
-	}
-
-	runLayout() {
+	runLayout(fit: boolean = true, unconstrIter: number = 50) {
 		const options = {
-			name: 'cola',
-			animate: true, // whether to show the layout as it's running
-			refresh: 1, // number of ticks per frame; higher is faster but more jerky
-			maxSimulationTime: 3000, // max length in ms to run the layout
-			ungrabifyWhileSimulating: false, // so you can't drag nodes during layout
-			fit: true, // on every layout reposition of nodes, fit the viewport
-			padding: 90, // padding around the simulation
-			boundingBox: undefined, // constrain layout bounds; { x1, y1, x2, y2 } or { x1, y1, w, h }
-			nodeDimensionsIncludeLabels: false, // whether labels should be included in determining the space used by a node
-
-			// layout event callbacks
-			ready: function () { }, // on layoutready
-			stop: function () { }, // on layoutstop
-
-			// positioning options
-			randomize: false, // use random node positions at beginning of layout
-			avoidOverlap: true, // if true, prevents overlap of node bounding boxes
-			handleDisconnected: true, // if true, avoids disconnected components from overlapping
-			convergenceThreshold: 0.01, // when the alpha value (system energy) falls below this value, the layout stops
-			nodeSpacing: function (node) { return 50; }, // extra spacing around nodes
-			flow: undefined, // use DAG/tree flow layout if specified, e.g. { axis: 'y', minSeparation: 30 }
-			alignment: undefined, // relative alignment constraints on nodes, e.g. function( node ){ return { x: 0, y: 1 } }
-			gapInequalities: undefined, // list of inequality constraints for the gap between the nodes, e.g. [{"axis":"y", "left":node1, "right":node2, "gap":25}]
-
-			// different methods of specifying edge length
-			// each can be a constant numerical value or a function like `function( edge ){ return 2; }`
-			edgeLength: undefined, // sets edge length directly in simulation
-			edgeSymDiffLength: undefined, // symmetric diff edge length in simulation
-			edgeJaccardLength: undefined, // jaccard edge length in simulation
-
-			// iterations of cola algorithm; uses default values on undefined
-			unconstrIter: 50, // unconstrained initial layout iterations
-			userConstIter: undefined, // initial layout iterations with user-specified constraints
-			allConstIter: undefined, // initial layout iterations with all constraints including non-overlap
-
-			// infinite layout options
-			infinite: false // overrides all other options for a forces-all-the-time mode
+			...layoutOptions,
+			fit,
+			unconstrIter
 		};
 
 		this.cy.layout(options).run()
@@ -397,7 +353,7 @@ export class ServiceDependencyGraphCtrl extends MetricsPanelCtrl {
 		return this.panel.dataMapping;
 	}
 
-	getSettings(): Settings {
+	getSettings(): PanelSettings {
 		return this.panel.sdgSettings;
 	}
 }

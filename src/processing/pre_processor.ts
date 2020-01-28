@@ -1,8 +1,7 @@
 import _, { map, flattenDeep, has, groupBy, values, reduce, merge, forOwn } from 'lodash';
 import Utils from '../util/Utils';
-import { GraphDataElement, GraphDataType } from '../graph/GraphData';
-import { QueryResponse } from './QueryResponse';
 import { ServiceDependencyGraphCtrl } from '../service_dependency_graph_ctrl';
+import { QueryResponse, GraphDataElement, GraphDataType } from '../types';
 
 class PreProcessor {
 

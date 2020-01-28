@@ -1,15 +1,7 @@
 import _ from 'lodash';
 import { ServiceDependencyGraphCtrl } from '../service_dependency_graph_ctrl';
-import ParticleEngine from './ParticleEngine';
-import { Particle, Particles } from './Particle';
-import { EGraphNodeType, IGraphMetrics } from '../graph/Graph';
-
-interface CyCanvas {
-    getCanvas: () => HTMLCanvasElement;
-    clear: (CanvasRenderingContext2D) => void;
-    resetTransform: (CanvasRenderingContext2D) => void;
-    setTransform: (CanvasRenderingContext2D) => void;
-}
+import ParticleEngine from './particle_engine';
+import { CyCanvas, IGraphMetrics, Particle, EGraphNodeType, Particles } from '../types';
 
 export default class CanvasDrawer {
 
@@ -72,8 +64,6 @@ export default class CanvasDrawer {
             console.error("Could not get 2d canvas context.");
         }
 
-        //this._preloadImages();
-
         this.offscreenCanvas = document.createElement('canvas');
         this.offscreenContext = <CanvasRenderingContext2D>this.offscreenCanvas.getContext('2d');
     }
@@ -89,7 +79,6 @@ export default class CanvasDrawer {
             };
 
             return new Promise((resolve, reject) => {
-                // const img = new Image();
                 image.onload = () => resolve(asset);
                 image.onerror = () => reject(new Error(`load ${url} fail`));
                 image.src = url;

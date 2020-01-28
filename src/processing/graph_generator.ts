@@ -1,8 +1,7 @@
 import _, { groupBy, filter, map, sum, some, isUndefined, uniq, difference, flatMap, concat, mean, defaultTo } from 'lodash';
-import { GraphDataElement, GraphDataType } from './GraphData';
 import { isPresent } from '../util/Utils';
-import { IGraph, IGraphEdge, IGraphMetrics, IGraphNode, EGraphNodeType } from './Graph';
 import { ServiceDependencyGraphCtrl } from '../service_dependency_graph_ctrl';
+import { GraphDataElement, IGraph, IGraphEdge, IGraphMetrics, IGraphNode, EGraphNodeType, GraphDataType } from '../types';
 
 class GraphGenerator {
 
