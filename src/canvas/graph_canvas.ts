@@ -5,8 +5,6 @@ import { CyCanvas, IGraphMetrics, Particle, EGraphNodeType, Particles } from '..
 
 export default class CanvasDrawer {
 
-    readonly particleAsset: string = '/public/plugins/novatec-service-dependency-graph-panel/assets/particle.png';
-
     readonly colors = {
         default: '#bad5ed',
         background: '#212121',

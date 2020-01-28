@@ -4,7 +4,7 @@ const options = {
     refresh: 1, // number of ticks per frame; higher is faster but more jerky
     maxSimulationTime: 3000, // max length in ms to run the layout
     ungrabifyWhileSimulating: false, // so you can't drag nodes during layout
-    // fit: true, // set by controller // on every layout reposition of nodes, fit the viewport
+    fit: true, // set by controller // on every layout reposition of nodes, fit the viewport
     padding: 90, // padding around the simulation
     boundingBox: undefined, // constrain layout bounds; { x1, y1, x2, y2 } or { x1, y1, w, h }
     nodeDimensionsIncludeLabels: false, // whether labels should be included in determining the space used by a node
@@ -30,7 +30,7 @@ const options = {
     edgeJaccardLength: undefined, // jaccard edge length in simulation
 
     // iterations of cola algorithm; uses default values on undefined
-    // unconstrIter: undefined, // set by controller // unconstrained initial layout iterations
+    unconstrIter: 50, // set by controller // unconstrained initial layout iterations
     userConstIter: undefined, // initial layout iterations with user-specified constraints
     allConstIter: undefined, // initial layout iterations with all constraints including non-overlap
 

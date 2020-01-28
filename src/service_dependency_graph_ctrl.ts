@@ -1,5 +1,5 @@
 import { MetricsPanelCtrl } from 'grafana/app/plugins/sdk';
-import _, { find, map, isUndefined, remove } from 'lodash';
+import _, { find, map, isUndefined, remove, each } from 'lodash';
 import { optionsTab } from './options_ctrl';
 import './css/novatec-service-dependency-graph-panel.css';
 import PreProcessor from './processing/pre_processor'
@@ -140,6 +140,7 @@ export class ServiceDependencyGraphCtrl extends MetricsPanelCtrl {
 	}
 
 	_updateOrRemove(dataArray: (NodeSingular | EdgeSingular)[], inputArray: CyData[]) {
+		const elements: (NodeSingular | EdgeSingular)[] = [];
 		for (let i = 0; i < dataArray.length; i++) {
 			const element = dataArray[i];
 
@@ -148,10 +149,12 @@ export class ServiceDependencyGraphCtrl extends MetricsPanelCtrl {
 			if (cyNode) {
 				element.data(cyNode.data);
 				remove(inputArray, n => n.data.id === cyNode.data.id);
+				elements.push(element);
 			} else {
 				element.remove();
 			}
 		}
+		return elements;
 	}
 
 	_updateGraph(graph: IGraph) {
@@ -164,7 +167,7 @@ export class ServiceDependencyGraphCtrl extends MetricsPanelCtrl {
 		console.groupEnd();
 
 		const nodes = this.cy.nodes().toArray();
-		this._updateOrRemove(nodes, cyNodes);
+		const updatedNodes = <NodeSingular[]>this._updateOrRemove(nodes, cyNodes);
 
 		// add new nodes
 		(<any>this.cy).add(cyNodes);
@@ -182,7 +185,10 @@ export class ServiceDependencyGraphCtrl extends MetricsPanelCtrl {
 			this.runLayout();
 		} else {
 			if (cyNodes.length > 0) {
-				this.runLayout();
+				each(updatedNodes, node => {
+					node.lock();
+				});
+				this.runLayout(true);
 			}
 		}
 	}
@@ -289,14 +295,25 @@ export class ServiceDependencyGraphCtrl extends MetricsPanelCtrl {
 		}
 	}
 
-	runLayout(fit: boolean = true, unconstrIter: number = 50) {
+	runLayout(unlockNodes: boolean = false) {
+		const that = this;
+
 		const options = {
 			...layoutOptions,
-			fit,
-			unconstrIter
+			stop: function () {
+				if (unlockNodes) {
+					that.unlockNodes();
+				}
+			}
 		};
 
 		this.cy.layout(options).run()
+	}
+
+	unlockNodes() {
+		this.cy.nodes().forEach(node => {
+			node.unlock();
+		});
 	}
 
 	fit() {
