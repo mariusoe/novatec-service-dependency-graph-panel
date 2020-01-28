@@ -203,7 +203,9 @@ export default class CanvasDrawer {
         // cyCanvas.resetTransform(ctx);
         cyCanvas.clear(ctx);
 
-        this._drawDebugInformation();
+        if (this.controller.getSettings().showDebugInformation) {
+            this._drawDebugInformation();
+        }
 
         if (offscreenCanvas.width > 0 && offscreenCanvas.height > 0)
             ctx.drawImage(offscreenCanvas, 0, 0);
@@ -266,7 +268,8 @@ export default class CanvasDrawer {
         this._drawEdgeParticles(ctx, edge, sourcePoint, targetPoint, now);
 
         // draw label
-        if (cy.zoom() > 1) {
+        const { showConnectionStats } = this.controller.getSettings();
+        if (showConnectionStats && cy.zoom() > 1) {
             this._drawEdgeLabel(ctx, edge);
         }
     }
@@ -532,7 +535,7 @@ export default class CanvasDrawer {
         ctx.fill();
 
         const nodeType = node.data('external_type');
-        
+
         const image = this._getImageAsset(nodeType);
         if (image != null) {
             ctx.drawImage(image, cX - size / 2, cY - size / 2, size, size);
@@ -585,7 +588,7 @@ export default class CanvasDrawer {
         ctx.fillStyle = 'white';
         ctx.fill();
 
-        const {healthyColor, dangerColor} = this.controller.getSettings().style;
+        const { healthyColor, dangerColor } = this.controller.getSettings().style;
         const colors = [dangerColor, this.colors.status.warning, healthyColor];
         for (let i = 0; i < percentages.length; i++) {
             let arc = this._drawArc(ctx, currentArc, cX, cY, radius, percentages[i], colors[i]);

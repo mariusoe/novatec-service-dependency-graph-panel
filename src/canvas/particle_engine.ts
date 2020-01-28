@@ -1,5 +1,5 @@
 import CanvasDrawer from "./graph_canvas";
-import _, {defaultTo} from 'lodash';
+import _, { defaultTo } from 'lodash';
 import { Particles, Particle, IGraphMetrics } from "../types";
 
 export default class ParticleEngine {
@@ -86,16 +86,12 @@ export default class ParticleEngine {
     count() {
         const cy = this.drawer.cytoscape;
 
-        return _(cy.edges())
+        const count = _(cy.edges())
             .map(edge => edge.data('particles'))
             .filter()
-            .map(particleArray => particleArray.normal.length)
-            .sum()
-            +
-            _(cy.edges())
-                .map(edge => edge.data('particles'))
-                .filter()
-                .map(particleArray => particleArray.danger.length)
-                .sum();
+            .map(particleArray => particleArray.normal.length + particleArray.danger.length)
+            .sum();
+
+        return count;
     }
 }

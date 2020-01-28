@@ -9,40 +9,44 @@ export interface QueryResponse {
 };
 
 export interface DataMapping {
-	sourceComponentPrefix: string;
-	targetComponentPrefix: string;
+    sourceComponentPrefix: string;
+    targetComponentPrefix: string;
 
-	responseTimeColumn: string;
-	requestRateColumn: string;
-	errorRateColumn: string;
-	responseTimeOutgoingColumn: string;
-	requestRateOutgoingColumn: string;
-	errorRateOutgoingColumn: string;
+    responseTimeColumn: string;
+    requestRateColumn: string;
+    errorRateColumn: string;
+    responseTimeOutgoingColumn: string;
+    requestRateOutgoingColumn: string;
+    errorRateOutgoingColumn: string;
 
-	extOrigin: string;
-	extTarget: string;
-	type: string;
+    extOrigin: string;
+    extTarget: string;
+    type: string;
 };
 
 export interface PanelSettings {
-	sumTimings: boolean;
-	filterEmptyConnections: boolean;
-	style: {
-		healthyColor: string;
-		dangerColor: string;
-	}
+    sumTimings: boolean;
+    filterEmptyConnections: boolean;
+    style: PanelStyleSettings;
+    showDebugInformation: boolean;
+    showConnectionStats: boolean;
 };
 
+export interface PanelStyleSettings {
+    healthyColor: string;
+    dangerColor: string;
+}
+
 export interface CyData {
-	group: string;
-	data: {
-		id: string;
-		source?: string;
-		target?: string;
-		metrics: IGraphMetrics;
-		type?: string;
-		external_type?: string;
-	}
+    group: string;
+    data: {
+        id: string;
+        source?: string;
+        target?: string;
+        metrics: IGraphMetrics;
+        type?: string;
+        external_type?: string;
+    }
 };
 
 export interface DataElement {

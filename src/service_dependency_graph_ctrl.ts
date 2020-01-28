@@ -68,7 +68,8 @@ export class ServiceDependencyGraphCtrl extends MetricsPanelCtrl {
 			style: {
 				healthyColor: 'rgb(87, 148, 242)',
 				dangerColor: 'rgb(184, 36, 36)'
-			}
+			},
+			showDebugInformation: false
 		}
 	};
 
@@ -110,6 +111,13 @@ export class ServiceDependencyGraphCtrl extends MetricsPanelCtrl {
 		console.log("refresh");
 	}
 
+	onInitEditMode() {
+		this.addEditorTab('Options', optionsTab, 2);
+	}
+
+	onPanelTeardown() {
+	}
+
 	toggleAnimation() {
 		this.panel.sdgSettings.animate = !this.panel.sdgSettings.animate;
 
@@ -129,10 +137,6 @@ export class ServiceDependencyGraphCtrl extends MetricsPanelCtrl {
 	isDataAvailable() {
 		const dataExist = !isUndefined(this.currentData) && this.currentData.length > 0;
 		return dataExist;
-	}
-
-	onObjectHighlighted(object) {
-		//TODO handle event
 	}
 
 	_updateOrRemove(dataArray: (NodeSingular | EdgeSingular)[], inputArray: CyData[]) {
@@ -302,13 +306,6 @@ export class ServiceDependencyGraphCtrl extends MetricsPanelCtrl {
 		} else {
 			this.cy.fit();
 		}
-	}
-
-	onInitEditMode() {
-		this.addEditorTab('Options', optionsTab, 2);
-	}
-
-	onPanelTeardown() {
 	}
 
 	onDataReceived(receivedData) {

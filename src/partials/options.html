@@ -92,7 +92,10 @@
             <div class="gf-form-inline">
                 <label class="gf-form-label width-16">Filter Empty Data<info-popover mode="right-normal">When enabled, the graph will only show connections and nodes which have a in or out rate higher than zero.</info-popover></label>
                 <gf-form-switch class="gf-form" checked="ctrl.panel.sdgSettings.filterEmptyConnections" on-change="ctrl.render()"></gf-form-switch>
+            </div>
 
+            <div class="gf-form-inline">
+                <gf-form-switch class="gf-form" label="Show Debug Information" label-class="width-16" checked="ctrl.panel.sdgSettings.showDebugInformation" on-change="ctrl.render()"></gf-form-switch>
             </div>
         </div>
 
