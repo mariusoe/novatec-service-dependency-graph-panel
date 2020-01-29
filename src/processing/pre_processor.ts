@@ -33,7 +33,7 @@ class PreProcessor {
 	}
 
 	_transformObjects(data: any[]): GraphDataElement[] {
-		const { extOrigin: externalSource, extTarget: externalTarget, sourceComponentPrefix, targetComponentPrefix } = this.controller.getDataMapping();
+		const { extOrigin: externalSource, extTarget: externalTarget, sourceComponentPrefix, targetComponentPrefix } = this.controller.getSettings().dataMapping;
 		const aggregationSuffix: string = Utils.getTemplateVariable(this.controller, 'aggregationType');
 
 		const sourceColumn = sourceComponentPrefix + aggregationSuffix;

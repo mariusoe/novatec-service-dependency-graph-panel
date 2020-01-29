@@ -6,6 +6,7 @@ export interface PanelSettings {
     showDebugInformation: boolean;
     showConnectionStats: boolean;
     externalIcons: IconResource[];
+    dataMapping: DataMapping;
 };
 
 export interface DataMapping {

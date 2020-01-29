@@ -1,4 +1,4 @@
-import _, {sortBy} from 'lodash';
+import _, { sortBy } from 'lodash';
 import { ServiceDependencyGraphCtrl } from './service_dependency_graph_ctrl';
 
 export class OptionsCtrl {
@@ -21,12 +21,12 @@ export class OptionsCtrl {
 	}
 
 	addExternalMapping() {
-		this.panel.sdgSettings.externalIcons.push({type: 'my-type', icon: 'default'});
+		this.panel.settings.externalIcons.push({ type: 'my-type', icon: 'default' });
 		this.controller.render();
 	}
 
 	removeExternalMapping(index) {
-		this.panel.sdgSettings.externalIcons.splice(index, 1);
+		this.panel.settings.externalIcons.splice(index, 1);
 		this.controller.render();
 	}
 
@@ -35,9 +35,9 @@ export class OptionsCtrl {
 	}
 
 	getColumnNames() {
-		const {currentData} = this.controller;
+		const { currentData } = this.controller;
 		if (currentData) {
-			return sortBy(this.controller.currentData.columnNames);
+			return sortBy(currentData.columnNames);
 		}
 		return [];
 	}
@@ -47,8 +47,10 @@ export class OptionsCtrl {
 			name: 'aggregationType'
 		}) as any).current.value;
 
-		if (this.controller.currentData) {
-			return _(this.controller.currentData.columnNames)
+		const { currentData } = this.controller;
+
+		if (currentData) {
+			return _(currentData.columnNames)
 				.filter(element => element.includes(aggregationType))
 				.map(element => element.slice(0, -aggregationType.length))
 				.value();

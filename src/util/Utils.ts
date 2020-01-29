@@ -10,11 +10,15 @@ export default {
 		var templateVariable: any = _.find(controller.dashboard.templating.list, {
 			name: variableName
 		});
-		return templateVariable.current.value;
+		if (templateVariable) {
+			return templateVariable.current.value;
+		} else {
+			return undefined;
+		}
 	},
 
 	getConfig: function (controller, configName) {
-		return controller.panel.dataMapping[configName];
+		return controller.panel.settings.dataMapping[configName];
 	},
 
 	getTemplateVariableValues: function (controller, variableName) {

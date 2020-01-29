@@ -1,5 +1,5 @@
 import { MetricsPanelCtrl } from 'grafana/app/plugins/sdk';
-import _, { find, map, isUndefined, remove, each } from 'lodash';
+import _, { find, map, isUndefined, remove, each, has } from 'lodash';
 import { optionsTab } from './options_ctrl';
 import './css/novatec-service-dependency-graph-panel.css';
 import PreProcessor from './processing/pre_processor'
@@ -12,7 +12,7 @@ import cola from 'cytoscape-cola';
 import cyCanvas from 'cytoscape-canvas';
 
 import layoutOptions from './layout_options';
-import { DataMapping, IGraph, IGraphNode, IGraphEdge, CyData, PanelSettings, CurrentData } from './types';
+import { DataMapping, IGraph, IGraphNode, IGraphEdge, CyData, PanelSettings, CurrentData, QueryResponse } from './types';
 
 // Register cytoscape extensions
 cyCanvas(cytoscape);
@@ -23,22 +23,7 @@ export class ServiceDependencyGraphCtrl extends MetricsPanelCtrl {
 	static templateUrl = 'partials/module.html';
 
 	panelDefaults = {
-		dataMapping: <DataMapping>{
-			sourceComponentPrefix: "origin_",
-			targetComponentPrefix: "target_",
-
-			responseTimeColumn: "response-time",
-			requestRateColumn: "request-rate",
-			errorRateColumn: "error-rate",
-			responseTimeOutgoingColumn: "response-time-out",
-			requestRateOutgoingColumn: "request-rate-out",
-			errorRateOutgoingColumn: "error-rate-out",
-
-			extOrigin: 'external_origin',
-			extTarget: 'external_target',
-			type: 'type'
-		},
-		sdgSettings: <PanelSettings>{
+		settings: <PanelSettings>{
 			animate: true,
 			sumTimings: false,
 			showConnectionStats: true,
@@ -65,11 +50,26 @@ export class ServiceDependencyGraphCtrl extends MetricsPanelCtrl {
 				healthyColor: 'rgb(87, 148, 242)',
 				dangerColor: 'rgb(184, 36, 36)'
 			},
-			showDebugInformation: false
+			showDebugInformation: false,
+			dataMapping: {
+				sourceComponentPrefix: "origin_",
+				targetComponentPrefix: "target_",
+
+				responseTimeColumn: "response-time",
+				requestRateColumn: "request-rate",
+				errorRateColumn: "error-rate",
+				responseTimeOutgoingColumn: "response-time-out",
+				requestRateOutgoingColumn: "request-rate-out",
+				errorRateOutgoingColumn: "error-rate-out",
+
+				extOrigin: 'external_origin',
+				extTarget: 'external_target',
+				type: 'type'
+			}
 		}
 	};
 
-	currentData: CurrentData;
+	currentData: CurrentData | undefined;
 
 	cy: cytoscape.Core;
 
@@ -82,6 +82,8 @@ export class ServiceDependencyGraphCtrl extends MetricsPanelCtrl {
 	graphGenerator: GraphGenerator = new GraphGenerator(this);
 
 	graphContainer: any;
+
+	validQueryTypes: boolean;
 
 	/** @ngInject */
 	constructor($scope, $injector) {
@@ -115,9 +117,9 @@ export class ServiceDependencyGraphCtrl extends MetricsPanelCtrl {
 	}
 
 	toggleAnimation() {
-		this.panel.sdgSettings.animate = !this.panel.sdgSettings.animate;
+		this.panel.settings.animate = !this.panel.settings.animate;
 
-		if (this.panel.sdgSettings.animate) {
+		if (this.panel.settings.animate) {
 			this.graphCanvas.startAnimation();
 		} else {
 			this.graphCanvas.stopAnimation();
@@ -259,7 +261,7 @@ export class ServiceDependencyGraphCtrl extends MetricsPanelCtrl {
 
 		this.graphCanvas = new GraphCanvas(this, this.cy, layer);
 		this.graphCanvas.start();
-		if (this.panel.sdgSettings.animate) {
+		if (this.panel.settings.animate) {
 			this.graphCanvas.startAnimation();
 		}
 
@@ -286,7 +288,7 @@ export class ServiceDependencyGraphCtrl extends MetricsPanelCtrl {
 		}
 
 		if (this.isDataAvailable()) {
-			const graph: IGraph = this.graphGenerator.generateGraph(this.currentData.graph);
+			const graph: IGraph = this.graphGenerator.generateGraph((<CurrentData>this.currentData).graph);
 			this._updateGraph(graph);
 		}
 	}
@@ -321,16 +323,41 @@ export class ServiceDependencyGraphCtrl extends MetricsPanelCtrl {
 		}
 	}
 
-	onDataReceived(receivedData) {
-		const graphData = this.preProcessor.processData(receivedData);
+	hasAggregationVariable() {
+		const templateVariable: any = _.find(this.dashboard.templating.list, {
+			name: 'aggregationType'
+		});
 
-		console.groupCollapsed('Processed received data');
-		console.log('raw data: ', receivedData);
-		console.log('graph data: ', graphData);
-		console.groupEnd();
+		return !!templateVariable;
+	}
 
-		this.currentData = graphData;
+	hasOnlyTableQueries(inputData: QueryResponse[]) {
+		var result: boolean = true;
 
+		each(inputData, dataElement => {
+			if (!has(dataElement, 'columns')) {
+				result = false;
+			}
+		});
+
+		return result;
+	}
+
+	onDataReceived(receivedData: QueryResponse[]) {
+		this.validQueryTypes = this.hasOnlyTableQueries(receivedData);
+
+		if (this.hasAggregationVariable() && this.validQueryTypes) {
+			const graphData = this.preProcessor.processData(receivedData);
+
+			console.groupCollapsed('Processed received data');
+			console.log('raw data: ', receivedData);
+			console.log('graph data: ', graphData);
+			console.groupEnd();
+
+			this.currentData = graphData;
+		} else {
+			this.currentData = undefined;
+		}
 		this.render();
 	}
 
@@ -351,7 +378,7 @@ export class ServiceDependencyGraphCtrl extends MetricsPanelCtrl {
 			return this.getAssetUrl('default.png');
 		}
 
-		const {externalIcons} = this.getSettings();
+		const { externalIcons } = this.getSettings();
 
 		const icon = find(externalIcons, icon => icon.name.toLowerCase() === type.toLowerCase());
 
@@ -363,10 +390,10 @@ export class ServiceDependencyGraphCtrl extends MetricsPanelCtrl {
 	}
 
 	getDataMapping(): DataMapping {
-		return this.panel.dataMapping;
+		return this.getSettings().dataMapping;
 	}
 
 	getSettings(): PanelSettings {
-		return this.panel.sdgSettings;
+		return this.panel.settings;
 	}
 }

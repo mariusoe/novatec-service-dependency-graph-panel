@@ -154,7 +154,7 @@ export default class CanvasDrawer {
             return false;
         }
 
-        if (!this.controller.panel.sdgSettings.animate && elapsedTime < 1000) {
+        if (!this.controller.panel.settings.animate && elapsedTime < 1000) {
             return true;
         }
         return false;
@@ -321,10 +321,10 @@ export default class CanvasDrawer {
             statistics.push(Math.floor(duration) + ' ms');
         }
         if (requestCount >= 0) {
-            statistics.push(requestCount + ' Requests');
+            statistics.push(Math.floor(requestCount) + ' Requests');
         }
         if (errorCount >= 0) {
-            statistics.push(errorCount + ' Errors');
+            statistics.push(Math.floor(errorCount) + ' Errors');
         }
 
         if (statistics.length > 0) {
@@ -495,10 +495,10 @@ export default class CanvasDrawer {
         const responseTime = _.get(metrics, 'response_time', -1);
 
         if (requestCount >= 0) {
-            lines.push('Requests: ' + requestCount);
+            lines.push('Requests: ' + Math.floor(requestCount));
         }
         if (errorCount >= 0) {
-            lines.push('Errors: ' + errorCount);
+            lines.push('Errors: ' + Math.floor(errorCount));
         }
         if (responseTime >= 0) {
             lines.push('Avg. Resp. Time: ' + Math.floor(responseTime) + ' ms');
