@@ -17,14 +17,6 @@ export default {
 		return controller.panel.dataMapping[configName];
 	},
 
-	getSourcePrefix: function (controller) {
-		return this.getConfig(controller, 'sourceComponentPrefix');
-	},
-
-	getTargetPrefix: function (controller) {
-		return this.getConfig(controller, 'targetComponentPrefix');
-	},
-
 	getTemplateVariableValues: function (controller, variableName) {
 		var templateVariable: any = _.find(controller.dashboard.templating.list, {
 			name: variableName

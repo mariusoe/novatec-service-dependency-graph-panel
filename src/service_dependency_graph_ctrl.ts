@@ -12,7 +12,7 @@ import cola from 'cytoscape-cola';
 import cyCanvas from 'cytoscape-canvas';
 
 import layoutOptions from './layout_options';
-import { DataMapping, IGraph, IGraphNode, IGraphEdge, CyData, PanelSettings, GraphDataElement } from './types';
+import { DataMapping, IGraph, IGraphNode, IGraphEdge, CyData, PanelSettings, CurrentData } from './types';
 
 // Register cytoscape extensions
 cyCanvas(cytoscape);
@@ -38,10 +38,6 @@ export class ServiceDependencyGraphCtrl extends MetricsPanelCtrl {
 			extTarget: 'external_target',
 			type: 'type'
 		},
-		sdgStyle: {
-			healthyColor: 'rgb(87, 148, 242)',
-			dangerColor: 'rgb(184, 36, 36)'
-		},
 		sdgSettings: <PanelSettings>{
 			animate: true,
 			sumTimings: false,
@@ -49,20 +45,20 @@ export class ServiceDependencyGraphCtrl extends MetricsPanelCtrl {
 			filterEmptyConnections: true,
 			externalIcons: [
 				{
-					type: 'web',
-					icon: 'web'
+					name: 'web',
+					filename: 'web'
 				},
 				{
-					type: 'jms',
-					icon: 'message'
+					name: 'jms',
+					filename: 'message'
 				},
 				{
-					type: 'database',
-					icon: 'database'
+					name: 'jdbc',
+					filename: 'database'
 				},
 				{
-					type: 'http',
-					icon: 'http'
+					name: 'http',
+					filename: 'http'
 				}
 			],
 			style: {
@@ -73,7 +69,7 @@ export class ServiceDependencyGraphCtrl extends MetricsPanelCtrl {
 		}
 	};
 
-	currentData: GraphDataElement[] = [];
+	currentData: CurrentData;
 
 	cy: cytoscape.Core;
 
@@ -135,7 +131,7 @@ export class ServiceDependencyGraphCtrl extends MetricsPanelCtrl {
 	}
 
 	isDataAvailable() {
-		const dataExist = !isUndefined(this.currentData) && this.currentData.length > 0;
+		const dataExist = !isUndefined(this.currentData) && this.currentData.graph.length > 0;
 		return dataExist;
 	}
 
@@ -290,7 +286,7 @@ export class ServiceDependencyGraphCtrl extends MetricsPanelCtrl {
 		}
 
 		if (this.isDataAvailable()) {
-			const graph: IGraph = this.graphGenerator.generateGraph(this.currentData);
+			const graph: IGraph = this.graphGenerator.generateGraph(this.currentData.graph);
 			this._updateGraph(graph);
 		}
 	}
@@ -354,10 +350,13 @@ export class ServiceDependencyGraphCtrl extends MetricsPanelCtrl {
 		if (!type) {
 			return this.getAssetUrl('default.png');
 		}
-		const mapping = find(this.panel.sdgSettings.externalIcons, e => e.type.toLowerCase() === type.toLowerCase());
 
-		if (mapping !== undefined) {
-			return this.getAssetUrl(mapping.icon + '.png');
+		const {externalIcons} = this.getSettings();
+
+		const icon = find(externalIcons, icon => icon.name.toLowerCase() === type.toLowerCase());
+
+		if (icon !== undefined) {
+			return this.getAssetUrl(icon.filename + '.png');
 		} else {
 			return this.getAssetUrl('default.png');
 		}

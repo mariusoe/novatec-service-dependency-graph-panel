@@ -1,7 +1,7 @@
-import _, { map, flattenDeep, has, groupBy, values, reduce, merge, forOwn } from 'lodash';
+import _, { map, flattenDeep, has, groupBy, values, reduce, merge, forOwn, keys } from 'lodash';
 import Utils from '../util/Utils';
 import { ServiceDependencyGraphCtrl } from '../service_dependency_graph_ctrl';
-import { QueryResponse, GraphDataElement, GraphDataType } from '../types';
+import { QueryResponse, GraphDataElement, GraphDataType, CurrentData } from '../types';
 
 class PreProcessor {
 
@@ -140,7 +140,17 @@ class PreProcessor {
 		return cleanedData;
 	}
 
-	processData(inputData: QueryResponse[]): GraphDataElement[] {
+	_extractColumnNames(data: GraphDataElement[]): string[] {
+		const columnNames: string[] = _(data)
+			.flatMap(dataElement => keys(dataElement.data))
+			.uniq()
+			.sort()
+			.value();
+
+		return columnNames;
+	}
+
+	processData(inputData: QueryResponse[]): CurrentData {
 		const objectTables = this._transformTables(inputData);
 
 		const flattenData = flattenDeep(objectTables);
@@ -148,6 +158,7 @@ class PreProcessor {
 		const graphElements = this._transformObjects(flattenData);
 
 		const mergedData = this._mergeGraphData(graphElements);
+		const columnNames = this._extractColumnNames(mergedData);
 
 		const cleanData = this._cleanData(mergedData);
 
@@ -157,9 +168,14 @@ class PreProcessor {
 		console.log('Graph elements:', graphElements);
 		console.log('Merged graph data:', mergedData);
 		console.log('Cleaned data:', cleanData);
+		console.log('Table columns:', columnNames);
 		console.groupEnd();
 
-		return cleanData;
+		return {
+			graph: cleanData,
+			raw: inputData,
+			columnNames: columnNames
+		};
 	}
 };
 

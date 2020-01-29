@@ -1,11 +1,11 @@
-export interface QueryResponseColumn {
-    type: string;
-    text: string;
-};
-
-export interface QueryResponse {
-    columns: QueryResponseColumn[];
-    rows: any[];
+export interface PanelSettings {
+    animate: boolean;
+    sumTimings: boolean;
+    filterEmptyConnections: boolean;
+    style: PanelStyleSettings;
+    showDebugInformation: boolean;
+    showConnectionStats: boolean;
+    externalIcons: IconResource[];
 };
 
 export interface DataMapping {
@@ -24,18 +24,25 @@ export interface DataMapping {
     type: string;
 };
 
-export interface PanelSettings {
-    sumTimings: boolean;
-    filterEmptyConnections: boolean;
-    style: PanelStyleSettings;
-    showDebugInformation: boolean;
-    showConnectionStats: boolean;
-};
-
 export interface PanelStyleSettings {
     healthyColor: string;
     dangerColor: string;
 }
+
+export interface IconResource {
+    name: string;
+    filename: string;
+}
+
+export interface QueryResponseColumn {
+    type: string;
+    text: string;
+};
+
+export interface QueryResponse {
+    columns: QueryResponseColumn[];
+    rows: any[];
+};
 
 export interface CyData {
     group: string;
@@ -49,6 +56,19 @@ export interface CyData {
     }
 };
 
+export interface CurrentData {
+    graph: GraphDataElement[];
+    raw: QueryResponse[];
+    columnNames: string[];
+}
+
+export interface GraphDataElement {
+    source?: string;
+    target: string;
+    data: DataElement;
+    type: GraphDataType;
+};
+
 export interface DataElement {
     rate_in?: number;
     rate_out?: number;
@@ -57,13 +77,6 @@ export interface DataElement {
     error_rate_in?: number;
     error_rate_out?: number;
     type?: string;
-};
-
-export interface GraphDataElement {
-    source?: string;
-    target: string;
-    data: DataElement;
-    type: GraphDataType;
 };
 
 export enum GraphDataType {
